@@ -113,7 +113,9 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
   const model = await loadModel();
 
   // react-native-fast-tflite v3 operates on ArrayBuffer[].
-  const outputBuffers: ArrayBuffer[] = await model.run([tensor.buffer]);
+
+  const outputBuffers: ArrayBuffer[] = await model.run([
+  tensor.buffer as ArrayBuffer,]);
 
   if (!outputBuffers.length) {
     throw new Error(
