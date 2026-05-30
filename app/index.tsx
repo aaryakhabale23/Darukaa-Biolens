@@ -26,10 +26,7 @@ import { router } from 'expo-router';
 import { preprocessImage } from '../ml/preprocess';
 import { getModel, runInference } from '../ml/model';
 import { getTopK } from '../ml/postprocess';
-import {
-  getCurrentLocation,
-  requestLocationPermission,
-} from '../utils/geoLocation';
+import { getCurrentLocation, requestLocationPermission } from '../utils/geoLocation';
 import { useObservationStore } from '../store/observationStore';
 import ImageStrip from '../components/ImageStrip';
 
@@ -78,10 +75,7 @@ export default function CameraScreen(): React.JSX.Element {
    */
   const handleCapture = useCallback(async () => {
     if (currentImages.length >= MAX_IMAGES) {
-      Alert.alert(
-        'Limit reached',
-        `You can capture up to ${MAX_IMAGES} images per observation.`,
-      );
+      Alert.alert('Limit reached', `You can capture up to ${MAX_IMAGES} images per observation.`);
       return;
     }
 
@@ -167,8 +161,7 @@ export default function CameraScreen(): React.JSX.Element {
       <View style={styles.centeredContainer}>
         <Text style={styles.permissionTitle}>Camera Access Required</Text>
         <Text style={styles.permissionBody}>
-          BioLens needs your camera to identify plants. Tap below to grant
-          access.
+          BioLens needs your camera to identify plants. Tap below to grant access.
         </Text>
         <TouchableOpacity
           style={styles.permissionButton}
@@ -211,13 +204,7 @@ export default function CameraScreen(): React.JSX.Element {
         {/* ── Bottom overlay ───────────────────────────────────────── */}
         <View style={styles.bottomOverlay}>
           {/* Thumbnail strip */}
-          {hasImages && (
-            <ImageStrip
-              images={currentImages}
-              onRemove={removeImage}
-              removable
-            />
-          )}
+          {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} removable />}
 
           {/* Controls row */}
           <View style={styles.controlsRow}>
@@ -225,10 +212,7 @@ export default function CameraScreen(): React.JSX.Element {
             <View style={styles.sideSlot}>
               {hasImages && (
                 <TouchableOpacity
-                  style={[
-                    styles.analyzeButton,
-                    isAnalyzing && styles.analyzeButtonDisabled,
-                  ]}
+                  style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
                   onPress={handleAnalyze}
                   disabled={isAnalyzing}
                   activeOpacity={0.8}
@@ -250,10 +234,7 @@ export default function CameraScreen(): React.JSX.Element {
               activeOpacity={0.7}
             >
               <View
-                style={[
-                  styles.captureButtonInner,
-                  isAnalyzing && styles.captureButtonDisabled,
-                ]}
+                style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
               />
             </TouchableOpacity>
 

@@ -98,10 +98,7 @@ export default function ResultsScreen(): React.JSX.Element {
         router.back();
       } catch (err) {
         console.error('[ResultsScreen] Save failed:', err);
-        Alert.alert(
-          'Save error',
-          'Could not save the observation. Please try again.',
-        );
+        Alert.alert('Save error', 'Could not save the observation. Please try again.');
       }
     },
     [currentImages, predictions, location, addObservation, clearCurrentImages],
@@ -111,12 +108,9 @@ export default function ResultsScreen(): React.JSX.Element {
   const handleReject = useCallback(() => saveAndReturn(false), [saveAndReturn]);
 
   // ── Top prediction label ───────────────────────────────────────────────
-  const topSpecies =
-    predictions.length > 0 ? predictions[0].species : 'Unknown';
+  const topSpecies = predictions.length > 0 ? predictions[0].species : 'Unknown';
   const topConfidence =
-    predictions.length > 0
-      ? `${(predictions[0].confidence * 100).toFixed(1)}%`
-      : '';
+    predictions.length > 0 ? `${(predictions[0].confidence * 100).toFixed(1)}%` : '';
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -135,13 +129,8 @@ export default function ResultsScreen(): React.JSX.Element {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Identification Results</Text>
           <Text style={styles.headerSubtitle}>
-            Top match:{' '}
-            <Text style={styles.highlightText}>
-              {topSpecies}
-            </Text>{' '}
-            {topConfidence !== '' && (
-              <Text style={styles.confidenceLabel}>({topConfidence})</Text>
-            )}
+            Top match: <Text style={styles.highlightText}>{topSpecies}</Text>{' '}
+            {topConfidence !== '' && <Text style={styles.confidenceLabel}>({topConfidence})</Text>}
           </Text>
         </View>
 
@@ -157,9 +146,7 @@ export default function ResultsScreen(): React.JSX.Element {
             ))
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>
-                No predictions available.
-              </Text>
+              <Text style={styles.emptyCardText}>No predictions available.</Text>
             </View>
           )}
         </View>
@@ -171,28 +158,18 @@ export default function ResultsScreen(): React.JSX.Element {
             <Text style={styles.locationValue}>
               {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
             </Text>
-            <Text style={styles.locationAccuracy}>
-              ± {location.accuracy.toFixed(0)} m
-            </Text>
+            <Text style={styles.locationAccuracy}>± {location.accuracy.toFixed(0)} m</Text>
           </View>
         )}
       </ScrollView>
 
       {/* ── Action buttons ───────────────────────────────────────────── */}
       <View style={styles.actionBar}>
-        <TouchableOpacity
-          style={styles.rejectButton}
-          onPress={handleReject}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.rejectButton} onPress={handleReject} activeOpacity={0.8}>
           <Text style={styles.actionButtonText}>Reject ✗</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.confirmButton}
-          onPress={handleConfirm}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.8}>
           <Text style={styles.actionButtonText}>Confirm ✓</Text>
         </TouchableOpacity>
       </View>

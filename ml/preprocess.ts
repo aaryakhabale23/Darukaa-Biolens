@@ -18,8 +18,7 @@ export const MODEL_INPUT_SIZE = 224;
 export const MODEL_INPUT_CHANNELS = 3;
 
 /** Total number of float values in the input tensor [1, 224, 224, 3]. */
-export const MODEL_INPUT_LENGTH =
-  MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * MODEL_INPUT_CHANNELS;
+export const MODEL_INPUT_LENGTH = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * MODEL_INPUT_CHANNELS;
 
 /**
  * Byte offset into the raw JPEG data where pixel content begins.

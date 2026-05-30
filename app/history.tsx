@@ -47,16 +47,18 @@ const COLORS = {
 function formatTimestamp(iso: string): string {
   try {
     const date = new Date(iso);
-    return date.toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }) +
+    return (
+      date.toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }) +
       ', ' +
       date.toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
-      });
+      })
+    );
   } catch {
     return iso;
   }
@@ -100,15 +102,12 @@ function ObservationCard({ observation }: ObservationCardProps): React.JSX.Eleme
         )}
 
         {/* Timestamp */}
-        <Text style={styles.timestamp}>
-          {formatTimestamp(observation.timestamp)}
-        </Text>
+        <Text style={styles.timestamp}>{formatTimestamp(observation.timestamp)}</Text>
 
         {/* GPS coordinates */}
         {observation.location && (
           <Text style={styles.coords}>
-            📍 {observation.location.lat.toFixed(4)},{' '}
-            {observation.location.lng.toFixed(4)}
+            📍 {observation.location.lat.toFixed(4)}, {observation.location.lng.toFixed(4)}
           </Text>
         )}
       </View>
@@ -184,9 +183,7 @@ export default function HistoryScreen(): React.JSX.Element {
   // ── Renderers ─────────────────────────────────────────────────────
 
   const renderItem = useCallback(
-    ({ item }: { item: Observation }) => (
-      <ObservationCard observation={item} />
-    ),
+    ({ item }: { item: Observation }) => <ObservationCard observation={item} />,
     [],
   );
 
@@ -210,9 +207,7 @@ export default function HistoryScreen(): React.JSX.Element {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         contentContainerStyle={
-          observations.length === 0
-            ? styles.emptyListContent
-            : styles.listContent
+          observations.length === 0 ? styles.emptyListContent : styles.listContent
         }
         refreshControl={
           <RefreshControl
@@ -227,8 +222,7 @@ export default function HistoryScreen(): React.JSX.Element {
             <Text style={styles.emptyIcon}>🌱</Text>
             <Text style={styles.emptyTitle}>No observations yet</Text>
             <Text style={styles.emptyBody}>
-              Start by capturing some plants!{'\n'}Your identifications will
-              appear here.
+              Start by capturing some plants!{'\n'}Your identifications will appear here.
             </Text>
           </View>
         }
@@ -239,10 +233,7 @@ export default function HistoryScreen(): React.JSX.Element {
       {observations.length > 0 && (
         <View style={styles.exportBar}>
           <TouchableOpacity
-            style={[
-              styles.exportButton,
-              isExporting && styles.exportButtonDisabled,
-            ]}
+            style={[styles.exportButton, isExporting && styles.exportButtonDisabled]}
             onPress={handleExport}
             disabled={isExporting}
             activeOpacity={0.8}
@@ -250,9 +241,7 @@ export default function HistoryScreen(): React.JSX.Element {
             {isExporting ? (
               <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-              <Text style={styles.exportButtonText}>
-                Export All ({observations.length})
-              </Text>
+              <Text style={styles.exportButtonText}>Export All ({observations.length})</Text>
             )}
           </TouchableOpacity>
         </View>

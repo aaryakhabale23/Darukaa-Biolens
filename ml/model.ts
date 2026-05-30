@@ -7,10 +7,7 @@
  * return the same `TfliteModel` instance.
  */
 
-import {
-  loadTensorflowModel,
-  type TfliteModel,
-} from 'react-native-fast-tflite';
+import { loadTensorflowModel, type TfliteModel } from 'react-native-fast-tflite';
 
 // Re-export the model type for convenience.
 export type { TfliteModel };
@@ -81,8 +78,7 @@ export async function loadModel(): Promise<TfliteModel> {
       // Reset so a future call can retry after a transient failure.
       loadingPromise = null;
 
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `[model] Failed to load TFLite model: ${message}. ` +
           'Ensure the .tflite file exists in assets/models/ and that ' +
@@ -113,9 +109,7 @@ export async function loadModel(): Promise<TfliteModel> {
  * const predictions = getTopK(scores);
  * ```
  */
-export async function runInference(
-  tensor: Float32Array,
-): Promise<Float32Array> {
+export async function runInference(tensor: Float32Array): Promise<Float32Array> {
   const model = await loadModel();
 
   // react-native-fast-tflite v3 operates on ArrayBuffer[].

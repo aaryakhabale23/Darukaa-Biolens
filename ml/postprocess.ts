@@ -87,10 +87,7 @@ export function softmax(scores: Float32Array): number[] {
  * );
  * ```
  */
-export function getTopK(
-  scores: Float32Array,
-  k: number = DEFAULT_TOP_K,
-): Prediction[] {
+export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Prediction[] {
   const probabilities = softmax(scores);
 
   // Build an index array so we can sort without losing original indices.

@@ -85,10 +85,7 @@ const EmptyPlaceholder: React.FC = () => (
  */
 const ImageStrip: React.FC<ImageStripProps> = ({ images, onRemove }) => {
   // Stable key extractor – index is fine here; the list is tiny (≤ 5).
-  const keyExtractor = useCallback(
-    (_item: string, index: number) => `thumb-${index}`,
-    [],
-  );
+  const keyExtractor = useCallback((_item: string, index: number) => `thumb-${index}`, []);
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<string>) => (

@@ -91,10 +91,7 @@ export async function exportObservations(observations: Observation[]): Promise<v
       }
 
       // Genuine failure — fall back to showing the file path.
-      Alert.alert(
-        'Export Saved',
-        `Observations have been saved to:\n${fileUri}`,
-      );
+      Alert.alert('Export Saved', `Observations have been saved to:\n${fileUri}`);
     }
   } catch (error) {
     console.error('[exportJson] Export failed:', error);

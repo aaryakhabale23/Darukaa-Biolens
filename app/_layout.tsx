@@ -41,18 +41,9 @@ export default function RootLayout(): React.JSX.Element {
       <StatusBar style="light" />
 
       <Stack screenOptions={defaultScreenOptions}>
-        <Stack.Screen
-          name="index"
-          options={{ title: 'BioLens' }}
-        />
-        <Stack.Screen
-          name="results"
-          options={{ title: 'Results' }}
-        />
-        <Stack.Screen
-          name="history"
-          options={{ title: 'History' }}
-        />
+        <Stack.Screen name="index" options={{ title: 'BioLens' }} />
+        <Stack.Screen name="results" options={{ title: 'Results' }} />
+        <Stack.Screen name="history" options={{ title: 'History' }} />
       </Stack>
     </>
   );

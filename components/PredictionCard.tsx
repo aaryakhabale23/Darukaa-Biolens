@@ -39,11 +39,7 @@ export interface PredictionCardProps {
  * <PredictionCard species="Ficus religiosa" confidence={0.91} rank={1} />
  * ```
  */
-const PredictionCard: React.FC<PredictionCardProps> = ({
-  species,
-  confidence,
-  rank,
-}) => {
+const PredictionCard: React.FC<PredictionCardProps> = ({ species, confidence, rank }) => {
   const badgeColor = BADGE_COLORS[rank] ?? BADGE_DEFAULT;
 
   return (
