@@ -88,13 +88,22 @@ export function softmax(scores: Float32Array): number[] {
  * ```
  */
 export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Prediction[] {
-  const probabilities = softmax(scores);
+  // Check if scores already represent a normalized probability distribution (sums to ~1.0)
+  let sumOfRawScores = 0;
+  for (let i = 0; i < scores.length; i++) {
+    sumOfRawScores += scores[i]!;
+  }
+
+  // If the sum is very close to 1.0, these are already probabilities (e.g. from quantized softmax outputs).
+  // Running softmax again would flatten/dilute them.
+  const probabilities = Math.abs(sumOfRawScores - 1.0) < 0.05
+    ? Array.from(scores)
+    : softmax(scores);
 
   // Build an index array so we can sort without losing original indices.
   const indices = Array.from({ length: probabilities.length }, (_, i) => i);
 
-  // Partial sort: we only need the top-k, but a full sort is fine for
-  // 1 081 elements (< 0.1 ms on modern devices).
+  // Sort by probability descending
   indices.sort((a, b) => probabilities[b]! - probabilities[a]!);
 
   const topK = indices.slice(0, k);

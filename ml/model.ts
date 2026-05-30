@@ -112,10 +112,24 @@ export async function loadModel(): Promise<TfliteModel> {
 export async function runInference(tensor: Float32Array): Promise<Float32Array> {
   const model = await loadModel();
 
-  // react-native-fast-tflite v3 operates on ArrayBuffer[].
+  // 1. Resolve input dataType and convert input tensor accordingly
+  const inputTensorInfo = model.inputs[0];
+  let inputBuffer: ArrayBuffer;
 
-  const outputBuffers: ArrayBuffer[] = await model.run([
-  tensor.buffer as ArrayBuffer,]);
+  if (inputTensorInfo && inputTensorInfo.dataType === 'uint8') {
+    // Convert float [-1, 1] back to u8 [0, 255]
+    const u8Array = new Uint8Array(tensor.length);
+    for (let i = 0; i < tensor.length; i++) {
+      // Float range [-1, 1] maps to [0, 255]
+      u8Array[i] = Math.round((tensor[i] + 1.0) * 127.5);
+    }
+    inputBuffer = u8Array.buffer as ArrayBuffer;
+  } else {
+    inputBuffer = tensor.buffer as ArrayBuffer;
+  }
+
+  // 2. Execute TFLite model inference
+  const outputBuffers: ArrayBuffer[] = await model.run([inputBuffer]);
 
   if (!outputBuffers.length) {
     throw new Error(
@@ -124,5 +138,18 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
     );
   }
 
-  return new Float32Array(outputBuffers[0]!);
+  // 3. Resolve output dataType and return Float32 scores
+  const outputTensorInfo = model.outputs[0];
+  if (outputTensorInfo && outputTensorInfo.dataType === 'uint8') {
+    // Read the buffer as bytes and scale to [0, 1] floats
+    const u8Output = new Uint8Array(outputBuffers[0]!);
+    const f32Output = new Float32Array(u8Output.length);
+    for (let i = 0; i < u8Output.length; i++) {
+      f32Output[i] = u8Output[i] / 255.0;
+    }
+    return f32Output;
+  } else {
+    // Standard float32 output
+    return new Float32Array(outputBuffers[0]!);
+  }
 }

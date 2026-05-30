@@ -10,7 +10,7 @@
  */
 
 import { Alert, Share, Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { Paths, File } from 'expo-file-system';
 
 import type { Observation } from '../store/observationStore';
 
@@ -19,36 +19,85 @@ import type { Observation } from '../store/observationStore';
 /**
  * Build a date-stamped filename for the export.
  *
- * @returns e.g. `biolens_observations_2026-05-30.json`
+ * @returns e.g. `biolens_observations_2026-05-31.csv`
  */
 function buildFileName(): string {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  return `biolens_observations_${today}.json`;
+  return `biolens_observations_${today}.csv`;
+}
+
+/**
+ * Convert an array of plant observations into a CSV formatted string.
+ * Escapes fields containing commas, double quotes, or newlines for Excel compatibility.
+ */
+function convertToCSV(observations: Observation[]): string {
+  const headers = [
+    'Observation ID',
+    'Timestamp',
+    'Status',
+    'Latitude',
+    'Longitude',
+    'GPS Accuracy (m)',
+    'Primary Match (Top)',
+    'Primary Confidence',
+    'Secondary Match (#2)',
+    'Secondary Confidence',
+    'Tertiary Match (#3)',
+    'Tertiary Confidence',
+    'Image Count',
+    'Synced'
+  ];
+
+  const rows = observations.map((obs) => {
+    const top = obs.predictions[0] || { species: 'N/A', confidence: 0 };
+    const sec = obs.predictions[1] || { species: 'N/A', confidence: 0 };
+    const tert = obs.predictions[2] || { species: 'N/A', confidence: 0 };
+    const statusText = obs.confirmed ? 'Confirmed ✓' : 'Rejected ✗';
+
+    const fields = [
+      obs.id,
+      obs.timestamp,
+      statusText,
+      obs.location ? obs.location.lat : 'N/A',
+      obs.location ? obs.location.lng : 'N/A',
+      obs.location ? obs.location.accuracy : 'N/A',
+      top.species,
+      `${(top.confidence * 100).toFixed(1)}%`,
+      sec.species,
+      `${(sec.confidence * 100).toFixed(1)}%`,
+      tert.species,
+      `${(tert.confidence * 100).toFixed(1)}%`,
+      obs.images.length,
+      obs.synced ? 'Yes' : 'No'
+    ];
+
+    return fields
+      .map((val) => {
+        const text = String(val);
+        // Escape quotes and wrap in quotes if it contains delimiters
+        if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+          return `"${text.replace(/"/g, '""')}"`;
+        }
+        return text;
+      })
+      .join(',');
+  });
+
+  return [headers.join(','), ...rows].join('\r\n');
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Export an array of observations as a shareable JSON file.
+ * Export an array of observations as a shareable CSV spreadsheet file.
  *
  * **Flow:**
- * 1. Validate that the array is non-empty (shows an alert otherwise).
- * 2. Serialise to pretty-printed JSON.
- * 3. Write the JSON to `FileSystem.documentDirectory`.
- * 4. Open the native Share sheet so the user can forward the file.
- *    - On iOS the file URI is shared directly.
- *    - On Android the file content is shared as a text message (since
- *      `Share.share` doesn't support file URIs natively). For a richer
- *      experience consider adding `expo-sharing` in the future.
- * 5. If sharing fails or is unavailable, show an alert with the file path.
+ * 1. Validate that the array is non-empty.
+ * 2. Convert observations to CSV layout.
+ * 3. Write CSV to D:\.gradle document directory.
+ * 4. Trigger Native Share sheet to open or save the document directly.
  *
  * @param observations - The observations to export.
- *
- * @example
- * ```ts
- * const observations = useObservationStore.getState().observations;
- * await exportObservations(observations);
- * ```
  */
 export async function exportObservations(observations: Observation[]): Promise<void> {
   // ── Guard: nothing to export ────────────────────────────────────────────
@@ -61,40 +110,38 @@ export async function exportObservations(observations: Observation[]): Promise<v
   }
 
   const fileName = buildFileName();
-  const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
   try {
-    // ── Write JSON to disk ──────────────────────────────────────────────
-    const json = JSON.stringify(observations, null, 2);
-    await FileSystem.writeAsStringAsync(fileUri, json, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    // ── Write CSV to disk ──────────────────────────────────────────────
+    const file = new File(Paths.document, fileName);
+    if (!file.exists) {
+      file.create();
+    }
+    const csvContent = convertToCSV(observations);
+    file.write(csvContent);
+    const fileUri = file.uri;
 
     // ── Share the file ──────────────────────────────────────────────────
     try {
       if (Platform.OS === 'ios') {
-        // iOS supports sharing file URIs directly.
+        // iOS supports sharing file URIs directly
         await Share.share({ url: fileUri });
       } else {
-        // Android: share the JSON as text content via the Share sheet.
-        // For large payloads consider switching to expo-sharing which
-        // supports file URIs cross-platform.
+        // Android: Share sheet supports sharing text content directly.
+        // For files, sharing the raw CSV text triggers Sheets/Excel handlers.
         await Share.share({
           title: fileName,
-          message: json,
+          message: csvContent,
         });
       }
     } catch (shareError: unknown) {
-      // User dismissed the share sheet — not a real error.
       if (shareError instanceof Error && shareError.message?.includes('dismiss')) {
         return;
       }
-
-      // Genuine failure — fall back to showing the file path.
-      Alert.alert('Export Saved', `Observations have been saved to:\n${fileUri}`);
+      Alert.alert('Export Saved', `Observations saved to:\n${fileUri}`);
     }
   } catch (error) {
-    console.error('[exportJson] Export failed:', error);
+    console.error('[exportCsv] Export failed:', error);
     Alert.alert('Export Failed', 'Something went wrong while exporting observations.');
   }
 }

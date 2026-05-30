@@ -10,41 +10,17 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Storage key ────────────────────────────────────────────────────────────
+import { Observation, Prediction } from '../types/observation';
+
+// Re-export them so other files can continue importing them from here if needed
+export { Observation, Prediction };
+
+// ─── Storage key ────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'biolens_observations';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 /** Maximum number of images allowed per capture session. */
 const MAX_IMAGES_PER_SESSION = 5;
-
-// ─── Domain types ───────────────────────────────────────────────────────────
-
-/** A single species prediction returned by the TFLite model. */
-export interface Prediction {
-  /** Scientific or common species name. */
-  species: string;
-  /** Model confidence score in the range [0, 1]. */
-  confidence: number;
-  /** 1-based rank among all predictions for this observation. */
-  rank: number;
-}
-
-/** A complete plant observation captured by the user. */
-export interface Observation {
-  /** Unique identifier (UUID v4). */
-  id: string;
-  /** ISO-8601 timestamp of when the observation was created. */
-  timestamp: string;
-  /** GPS coordinates at capture time, or null if unavailable. */
-  location: { lat: number; lng: number; accuracy: number } | null;
-  /** File URIs of the captured images. */
-  images: string[];
-  /** Model predictions sorted by rank. */
-  predictions: Prediction[];
-  /** Whether the user has confirmed the top prediction. */
-  confirmed: boolean;
-  /** Whether this observation has been synced to a remote server. */
-  synced: boolean;
-}
 
 // ─── Store shape ────────────────────────────────────────────────────────────
 
@@ -59,10 +35,14 @@ interface ObservationState {
 
   /** Append an image URI to the current session (max {@link MAX_IMAGES_PER_SESSION}). */
   addImage: (uri: string) => void;
+  /** Remove an image URI from the current session by index. */
+  removeImage: (index: number) => void;
   /** Discard all images from the current capture session. */
   clearCurrentImages: () => void;
   /** Create and persist a new observation (id, timestamp & synced are auto-set). */
   saveObservation: (observation: Omit<Observation, 'id' | 'timestamp' | 'synced'>) => void;
+  /** Alias for {@link saveObservation} to maintain compatibility. */
+  addObservation: (observation: Omit<Observation, 'id' | 'timestamp' | 'synced'>) => void;
   /** Mark an observation as confirmed by the user. */
   confirmObservation: (id: string) => void;
   /** Remove an observation (user rejected the identification). */
@@ -142,6 +122,12 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
     });
   },
 
+  removeImage: (index: number) => {
+    set((state) => ({
+      currentImages: state.currentImages.filter((_, i) => i !== index),
+    }));
+  },
+
   clearCurrentImages: () => {
     set({ currentImages: [] });
   },
@@ -162,6 +148,10 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
       void persistToStorage(updated);
       return { observations: updated };
     });
+  },
+
+  addObservation: (partial) => {
+    get().saveObservation(partial);
   },
 
   confirmObservation: (id: string) => {

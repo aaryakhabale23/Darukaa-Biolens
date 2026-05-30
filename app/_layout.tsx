@@ -9,7 +9,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
 // ─── Color Palette ──────────────────────────────────────────────────────────
 const COLORS = {
@@ -18,12 +17,12 @@ const COLORS = {
 } as const;
 
 /** Shared header options applied to every screen in the stack. */
-const defaultScreenOptions: NativeStackNavigationOptions = {
+const defaultScreenOptions = {
   headerStyle: { backgroundColor: COLORS.primaryGreen },
   headerTintColor: COLORS.white,
-  headerTitleStyle: { fontWeight: 'bold' },
+  headerTitleStyle: { fontWeight: 'bold' as const },
   headerShadowVisible: false,
-  animation: 'slide_from_right',
+  animation: 'slide_from_right' as const,
 };
 
 /**

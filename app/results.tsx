@@ -122,7 +122,7 @@ export default function ResultsScreen(): React.JSX.Element {
       >
         {/* ── Captured images ──────────────────────────────────────── */}
         <View style={styles.imageSection}>
-          <ImageStrip images={currentImages} removable={false} />
+          <ImageStrip images={currentImages} />
         </View>
 
         {/* ── Header ───────────────────────────────────────────────── */}
@@ -140,8 +140,9 @@ export default function ResultsScreen(): React.JSX.Element {
             predictions.map((pred) => (
               <PredictionCard
                 key={`pred-${pred.rank}`}
-                prediction={pred}
-                isTopResult={pred.rank === 1}
+                species={pred.species}
+                confidence={pred.confidence}
+                rank={pred.rank}
               />
             ))
           ) : (

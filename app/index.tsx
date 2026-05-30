@@ -24,7 +24,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 
 import { preprocessImage } from '../ml/preprocess';
-import { getModel, runInference } from '../ml/model';
+import { runInference } from '../ml/model';
 import { getTopK } from '../ml/postprocess';
 import { getCurrentLocation, requestLocationPermission } from '../utils/geoLocation';
 import { useObservationStore } from '../store/observationStore';
@@ -114,9 +114,8 @@ export default function CameraScreen(): React.JSX.Element {
       // 2. Preprocess the first image
       const inputTensor = await preprocessImage(currentImages[0]);
 
-      // 3. Load (or get cached) TFLite model & run inference
-      const model = await getModel();
-      const outputTensor = await runInference(model, inputTensor);
+      // 3. Run inference
+      const outputTensor = await runInference(inputTensor);
 
       // 4. Extract top-K predictions
       const predictions = getTopK(outputTensor, TOP_K);
@@ -181,78 +180,78 @@ export default function CameraScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
       {/* Camera viewfinder */}
-      <CameraView ref={cameraRef} style={styles.camera} facing="back">
-        {/* ── Top overlay ──────────────────────────────────────────── */}
-        <View style={styles.topOverlay}>
-          {/* Image count badge */}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {currentImages.length}/{MAX_IMAGES}
-            </Text>
+      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+
+      {/* ── Top overlay ──────────────────────────────────────────── */}
+      <View style={styles.topOverlay}>
+        {/* Image count badge */}
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {currentImages.length}/{MAX_IMAGES}
+          </Text>
+        </View>
+
+        {/* History button */}
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={handleHistory}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.historyButtonText}>History</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Bottom overlay ───────────────────────────────────────── */}
+      <View style={styles.bottomOverlay}>
+        {/* Thumbnail strip */}
+        {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} />}
+
+        {/* Controls row */}
+        <View style={styles.controlsRow}>
+          {/* Analyze button (left slot) */}
+          <View style={styles.sideSlot}>
+            {hasImages && (
+              <TouchableOpacity
+                style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
+                onPress={handleAnalyze}
+                disabled={isAnalyzing}
+                activeOpacity={0.8}
+              >
+                {isAnalyzing ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.analyzeButtonText}>Analyze</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* History button */}
+          {/* Capture button (center) */}
           <TouchableOpacity
-            style={styles.historyButton}
-            onPress={handleHistory}
-            activeOpacity={0.8}
+            style={styles.captureButtonOuter}
+            onPress={handleCapture}
+            disabled={isAnalyzing}
+            activeOpacity={0.7}
           >
-            <Text style={styles.historyButtonText}>History</Text>
+            <View
+              style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
+            />
           </TouchableOpacity>
-        </View>
 
-        {/* ── Bottom overlay ───────────────────────────────────────── */}
-        <View style={styles.bottomOverlay}>
-          {/* Thumbnail strip */}
-          {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} removable />}
-
-          {/* Controls row */}
-          <View style={styles.controlsRow}>
-            {/* Analyze button (left slot) */}
-            <View style={styles.sideSlot}>
-              {hasImages && (
-                <TouchableOpacity
-                  style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
-                  onPress={handleAnalyze}
-                  disabled={isAnalyzing}
-                  activeOpacity={0.8}
-                >
-                  {isAnalyzing ? (
-                    <ActivityIndicator size="small" color={COLORS.white} />
-                  ) : (
-                    <Text style={styles.analyzeButtonText}>Analyze</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Capture button (center) */}
-            <TouchableOpacity
-              style={styles.captureButtonOuter}
-              onPress={handleCapture}
-              disabled={isAnalyzing}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
-              />
-            </TouchableOpacity>
-
-            {/* Clear button (right slot) */}
-            <View style={styles.sideSlot}>
-              {hasImages && !isAnalyzing && (
-                <TouchableOpacity
-                  style={styles.clearButton}
-                  onPress={clearCurrentImages}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.clearButtonText}>Clear</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+          {/* Clear button (right slot) */}
+          <View style={styles.sideSlot}>
+            {hasImages && !isAnalyzing && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={clearCurrentImages}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.clearButtonText}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-      </CameraView>
+      </View>
 
       {/* Full-screen loading overlay while analyzing */}
       {isAnalyzing && (
@@ -316,11 +315,15 @@ const styles = StyleSheet.create({
 
   // ── Top overlay ──────────────────────────────────────────────────────
   topOverlay: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    zIndex: 10,
   },
   badge: {
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -420,7 +423,11 @@ const styles = StyleSheet.create({
 
   // ── Loading overlay ──────────────────────────────────────────────────
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     alignItems: 'center',

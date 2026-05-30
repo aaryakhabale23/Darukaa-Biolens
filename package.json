@@ -14,12 +14,14 @@
     "expo-location": "~56.0.15",
     "expo-router": "~56.2.8",
     "expo-status-bar": "~56.0.4",
+    "jpeg-js": "^0.4.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-fast-tflite": "^3.0.1",
     "react-native-nitro-modules": "^0.35.9",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.2",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -34,8 +36,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint --ext .ts,.tsx .",
     "lint:fix": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint --ext .ts,.tsx . --fix",
