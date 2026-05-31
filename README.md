@@ -7,56 +7,107 @@
 
 ## Overview
 
-BioLens enables fieldworkers to identify plant species in real time using on-device ML.
-No internet required. Built for Darukaa.Earth's ecological data collection workflows.
+BioLens enables field ecologists and workers to identify plant species in real time using on-device Machine Learning. No internet required. Built for Darukaa.Earth's ecological data collection workflows.
 
-Field ecologists working in remote areas capture images of vegetation; BioLens runs a
-quantized MobileNetV2 model entirely on-device, delivers real-time species predictions
-with confidence scores, and stores structured biodiversity records locally for later export.
+Field workers capture images of vegetation; BioLens runs a highly optimized MobileNetV2 INT8 quantized model entirely on-device, delivers real-time species predictions with confidence scores, and stores structured geolocated biodiversity records locally for later CSV/PDF export.
 
 ## ML Pipeline Architecture
 
 ```
-Image Capture → Preprocessing (resize 224×224, normalize) → TFLite Inference
-→ Softmax + Top-K → Species Results
+Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quantization 
+→ Native TFLite Inference → Signed INT8 Output Dequantization → Softmax + Top-K 
+→ Species Results
 ```
 
 ### Pipeline Stages
 
-| Step | Stage | Detail | Library |
-|------|-------|--------|---------|
-| 1 | Image Capture | Expo Camera captures JPEG; saved with UUID filename | `expo-camera`, `expo-file-system` |
-| 2 | Preprocessing | Resize to 224×224 → normalize pixels to [-1, 1] → Float32Array tensor | `expo-image-manipulator` |
-| 3 | Inference | Load .tflite model; run synchronous inference; returns 1081 class scores | `react-native-fast-tflite` |
-| 4 | Post-processing | Apply softmax; pick top-K (K=3); map indices to species labels | Custom JS, `labels.json` |
+| Step | Stage | Detail | Implementation / Library |
+|------|-------|--------|-------------------------|
+| 1 | **Image Capture** | Expo Camera captures JPEG; saved locally with UUID filename. | `expo-camera`, `expo-file-system` |
+| 2 | **Preprocessing** | Resize to 224×224. Base64 string is decoded via a custom pure JS base64 decoder and parsed using `jpeg-js` into raw RGBA bytes. Pixel values are normalized to the `[-1, 1]` range. | `expo-image-manipulator`, `jpeg-js` |
+| 3 | **Input Quantization** | Map Float32 `[-1, 1]` values into Signed INT8 `[-128, 127]` array using model scale (`0.007843135`) and zero-point (`-1`). An ArrayBuffer slice is passed synchronously to TFLite. | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
+| 4 | **Inference** | Load model synchronous runner; execute inference using CPU delegate. | `react-native-fast-tflite` |
+| 5 | **Output Dequantization** | The output buffer is read using a signed `Int8Array` and dequantized back into Float32 logits using model scale (`0.16345862`) and zero-point (`127`). | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
+| 6 | **Post-processing** | Computes a numerically stable softmax over all 1081 species logits, extracts the Top-3 highest-confidence species, and matches them to labels. | [ml/postprocess.ts](file:///D:/Projects/Darukaa/biolens/ml/postprocess.ts) |
 
-### Model: MobileNetV2 (quantized INT8, ~6 MB)
+---
+
+### Model: MobileNetV2 (Quantized INT8)
 
 | Property | Value |
 |----------|-------|
-| Architecture | MobileNetV2 (depthwise separable convolutions) |
-| Model file | `mobilenet_v2_plant.tflite` |
-| Input shape | `[1, 224, 224, 3]` — RGB image tensor |
-| Output shape | `[1, 1081]` — confidence per species |
-| Model size | ~6 MB (quantized) / ~14 MB (float32) |
-| Inference time | ~80–150 ms on mid-range Android (Snapdragon 665) |
-| Label count | 1081 plant species |
+| **Architecture** | MobileNetV2 (depthwise separable convolutions) |
+| **Model File** | `assets/models/mobilenet_v2_plant.tflite` |
+| **Input Shape** | `[1, 224, 224, 3]` — Signed INT8 image tensor |
+| **Output Shape** | `[1, 1081]` — Signed INT8 logits per species |
+| **Model Size** | **3.93 MB** (Quantized INT8) / original is ~13.74 MB (Float32) |
+| **Inference Speed**| ~50–120 ms on mid-range Android devices |
+| **Label Count** | 1081 plant species |
 
-## Quick Start
+---
 
-```bash
-git clone <your-repo> && cd biolens
-npm install
-npx expo start
-```
-
-Scan QR with Expo Go (Android) or run on emulator.
+## Quick Start & Running the Project
 
 ### Prerequisites
 
-- Node.js 18+
-- Expo CLI (`npm install -g expo-cli`)
-- Android device with Expo Go app, or Android emulator
+- **Node.js 18+**
+- **EAS CLI** (`npm install -g eas-cli`)
+- **Android Device** (Custom Development Client is required. Custom C++ native modules **do not run inside standard Expo Go**).
+
+### Installation
+
+1. Clone the repository and install dependencies:
+   ```bash
+   git clone <your-repo> && cd biolens
+   npm install
+   ```
+
+2. Run the Metro bundler locally:
+   ```bash
+   npx expo start
+   ```
+
+---
+
+## How to Build the Android APK
+
+Because this app utilizes native C++ wrappers (`react-native-fast-tflite` Nitro Modules), it cannot run in the generic Expo Go client. You must build a standalone APK.
+
+### Step 1: Install EAS CLI and Log In
+```bash
+npm install -g eas-cli
+eas login
+```
+
+### Step 2: Configure EAS Build
+```bash
+eas build:configure
+```
+*(Select `Android` when prompted. This will generate `eas.json` in your project root).*
+
+### Step 3: Configure `eas.json` for APK builds
+Ensure your `eas.json` has `buildType` configured as `apk` under the `preview` profile:
+```json
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
+```
+
+### Step 4: Run the Build
+Run the build on EAS cloud servers (which are pre-configured with the required Android NDK and CMake compilers):
+```bash
+eas build --platform android --profile preview
+```
+Once compilation is complete, EAS will output a QR code and URL link to download the installable `.apk` file directly onto your Android device.
+
+---
 
 ## Project Structure
 
@@ -64,28 +115,32 @@ Scan QR with Expo Go (Android) or run on emulator.
 biolens/
 ├── app/                      ← Expo Router screens
 │   ├── _layout.tsx           ← Root layout with navigation
-│   ├── index.tsx             ← Home / Camera screen
-│   ├── results.tsx           ← Prediction results screen
-│   └── history.tsx           ← Observations list screen
+│   ├── index.tsx             ← Welcome & Profile selection (Ecologist/Admin)
+│   ├── camera.tsx            ← Camera & capture screen (Ecology capture)
+│   ├── results.tsx           ← ML prediction results screen (Confirm/Reject)
+│   ├── admin.tsx             ← Admin Dashboard (Stats, Shannon Index, Site comparisons)
+│   └── history.tsx           ← Offline observations history list screen
 ├── components/               ← Reusable UI components
 │   ├── PredictionCard.tsx    ← Species + confidence card
 │   ├── ImageStrip.tsx        ← Multi-image thumbnail strip
 │   └── ConfidenceBar.tsx     ← Visual confidence bar
-├── ml/                       ← All ML-related code
-│   ├── model.ts              ← TFLite load & inference
-│   ├── preprocess.ts         ← Image → tensor pipeline
-│   ├── postprocess.ts        ← Softmax + top-K
-│   └── labels.json           ← PlantNet species map
+├── ml/                       ← All ML-related pipeline code
+│   ├── model.ts              ← TFLite loading, quantization, and inference
+│   ├── preprocess.ts         ← Base64 decode (pure JS) & normalization to [-1, 1]
+│   ├── postprocess.ts        ← Numerically-stable softmax & top-K sorting
+│   └── labels.json           ← 1081 PlantNet species name mapping
 ├── store/                    ← Zustand state management
-│   └── observationStore.ts   ← Observation CRUD + persistence
-├── utils/                    ← Helpers
-│   ├── geoLocation.ts        ← GPS location capture
-│   └── exportJson.ts         ← JSON export utility
+│   └── observationStore.ts   ← Observations state management (Zustand v5 + AsyncStorage)
+├── utils/                    ← Helper utilities
+│   ├── geoLocation.ts        ← GPS location permissions and capture
+│   ├── ecology.ts            ← Shannon Index (H') & biodiversity metrics
+│   ├── exportCsv.ts          ← CSV data export
+│   └── exportPdf.ts          ← PDF reports generation
 ├── assets/
 │   └── models/
-│       └── mobilenet_v2_plant.tflite
+│       └── mobilenet_v2_plant.tflite   ← 3.93 MB INT8 Quantized model
 ├── .github/workflows/
-│   └── ci.yml                ← GitHub Actions pipeline
+│   └── ci.yml                ← GitHub Actions (Prettier, ESLint, type-checking)
 ├── .eslintrc.js
 ├── .prettierrc
 ├── app.json
@@ -93,64 +148,16 @@ biolens/
 └── README.md
 ```
 
-## Features
+---
 
-- **On-Device ML Inference**: No internet required. TFLite model runs directly on the device.
-- **Multi-Image Capture**: Capture up to 5 images per observation session.
-- **Real-Time Predictions**: Top-3 species predictions with confidence scores in < 3 seconds.
-- **Confirm/Reject Flow**: Validate predictions before saving to ensure data accuracy.
-- **GPS Location Tagging**: Each observation is tagged with GPS coordinates.
-- **Offline History**: Browse all saved observations without internet.
-- **JSON Export**: Export all observations as a structured JSON file for analysis tools.
+## Technical Features & Implementation Details
 
-## CI/CD Pipeline
-
-GitHub Actions on every push to `main`/`develop`:
-
-1. **ESLint** — code quality check
-2. **Prettier** — format consistency check
-3. **TypeScript** — type safety check
-4. **Expo Export** — build validity check
-
-## Trade-off Decisions
-
-| Decision | Chosen | Why |
-|----------|--------|-----|
-| Model size | Quantized INT8 (6 MB) | Smaller APK; faster inference; negligible accuracy loss (~1%) |
-| Speed vs Accuracy | MobileNetV2 over EfficientNet | MobileNetV2 is 3× faster; accuracy acceptable for field use |
-| Labels | PlantNet 1K subset (1081 species) | Full 300K species requires 50 MB JSON; 1K covers common field plants |
-| Offline-first | All data on-device | Field workers often have no connectivity; sync is secondary |
-| RN bridge | `react-native-fast-tflite` | Faster than `expo-ml-kit` for custom models; supports GPU delegate |
-| State management | Zustand | Minimal boilerplate vs Redux; lightweight for mobile |
-| Navigation | Expo Router | File-based routing; simplest mental model |
-
-## Assumptions & Limitations
-
-- Model accuracy: ~72% top-1 on PlantNet val; higher with multi-image voting
-- Labels limited to 1081 common species (not all 300K PlantNet species)
-- GPS accuracy depends on device hardware
-- iOS build not tested; Android (API 26+) primary target
-- Currently using standard MobileNetV2 ImageNet weights with PlantNet label mapping
-- Image preprocessing uses base64 decode which may have slight quality variation vs raw pixel access
-
-## Technology Stack
-
-| Category | Choice | Rationale |
-|----------|--------|-----------|
-| Framework | React Native + Expo 56 | Required by spec; Expo Go simplifies demo delivery |
-| Camera | `expo-camera` | Official Expo module; supports photo capture with metadata |
-| Image Processing | `expo-image-manipulator` | Resize & crop on-device; lightweight |
-| ML Runtime | `react-native-fast-tflite` | Fastest TFLite bridge for RN; GPU delegate support |
-| Model | MobileNetV2 quantized `.tflite` | Spec-recommended; <100 ms inference on mid-range Android |
-| State | Zustand v5 | Minimal boilerplate; perfect for project scope |
-| Storage | AsyncStorage + expo-file-system | Offline-first; images as files, metadata as JSON |
-| Navigation | Expo Router | File-based routing; beginner-friendly |
-| Location | `expo-location` | GPS coords attached to each observation |
-| CI/CD | GitHub Actions | ESLint + Prettier + Expo build check on push |
-
-## APK Download
-
-[Link to APK]
+- **Pure JS Base64 Decoder**: React Native's Hermes engine does not expose the browser global `atob()`. Image base64 data is parsed back to bytes using an optimized, zero-dependency Javascript decoder inside the preprocessing step.
+- **On-Device INT8 Inference**: Fast synchronous ML model calls via React Native JSI (JavaScript Interface), achieving highly optimized inference times (<100ms) on-device.
+- **Defensive Quantization Handling**: The pipeline features fallback configurations (scales and zero-points) to maintain model stability across various architectures and configurations.
+- **Offline-First Storage**: Saves all records locally using Zustand v5 mapped to React Native's `AsyncStorage`.
+- **Ecology Analytics**: Automatically calculates the **Shannon Biodiversity Index ($H'$)**, unique species counts, and site comparisons directly on-device.
+- **Data Exporting**: Export all captured offline vegetation observation data as CSV or PDF report formats.
 
 ## License
 
