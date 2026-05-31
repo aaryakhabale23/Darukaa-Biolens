@@ -176,17 +176,16 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
       scores[i] = uint8Arr[i]! * 0.00390625;
     }
   } else if (outputDataType === 'int8') {
-    // Read the output buffer as Uint8Array to avoid JS sign-flipping distortions.
-    const uint8Arr = new Uint8Array(outBuffer);
+    const int8Arr = new Int8Array(outBuffer);
     console.log(
-      '[model] Output is int8 (read as uint8). First 10 raw scores:',
-      JSON.stringify(Array.from(uint8Arr.slice(0, 10))),
+      '[model] Output is int8. First 10 raw scores:',
+      JSON.stringify(Array.from(int8Arr.slice(0, 10))),
     );
-    scores = new Float32Array(uint8Arr.length);
+    scores = new Float32Array(int8Arr.length);
     const scale = (outputTensorDesc as any)?.scale ?? 0.16345862;
     const zeroPoint = (outputTensorDesc as any)?.zeroPoint ?? 127;
-    for (let i = 0; i < uint8Arr.length; i++) {
-      scores[i] = (uint8Arr[i]! - zeroPoint) * scale;
+    for (let i = 0; i < int8Arr.length; i++) {
+      scores[i] = (int8Arr[i]! - zeroPoint) * scale;
     }
   } else {
     // Default: output is float32
