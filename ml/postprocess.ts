@@ -91,7 +91,9 @@ export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Predic
   // Always use softmax to get probabilities from raw dequantized logits.
   const probabilities = softmax(scores);
 
-  console.log(`[postprocess] Applied softmax to scores. Max probability: ${Math.max(...probabilities).toFixed(4)}`);
+  console.log(
+    `[postprocess] Applied softmax to scores. Max probability: ${Math.max(...probabilities).toFixed(4)}`,
+  );
 
   // Build an index array so we can sort without losing original indices.
   const indices = Array.from({ length: probabilities.length }, (_, i) => i);

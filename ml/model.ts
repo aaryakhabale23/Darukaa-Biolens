@@ -143,7 +143,7 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
   // Slice the buffer to guarantee we pass only the active content bytes to TFLite.
   const inputBuffer = inputTypedArray.buffer.slice(
     inputTypedArray.byteOffset,
-    inputTypedArray.byteOffset + inputTypedArray.byteLength
+    inputTypedArray.byteOffset + inputTypedArray.byteLength,
   ) as ArrayBuffer;
   const outputBuffers: ArrayBuffer[] = await model.run([inputBuffer]);
 
@@ -162,7 +162,10 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
 
   if (outputTensorDesc?.dataType === 'uint8') {
     const uint8Arr = new Uint8Array(outBuffer);
-    console.log('[model] Output is uint8. First 10 raw scores:', JSON.stringify(Array.from(uint8Arr.slice(0, 10))));
+    console.log(
+      '[model] Output is uint8. First 10 raw scores:',
+      JSON.stringify(Array.from(uint8Arr.slice(0, 10))),
+    );
     scores = new Float32Array(uint8Arr.length);
     // Dequantize from [0, 255] back to [0.0, 1.0] probabilities using the model's scale.
     // (scale = 0.00390625 = 1/256)
@@ -172,7 +175,10 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
   } else if (outputTensorDesc?.dataType === 'int8') {
     // Read the output buffer as Uint8Array to avoid JS sign-flipping distortions.
     const uint8Arr = new Uint8Array(outBuffer);
-    console.log('[model] Output is int8 (read as uint8). First 10 raw scores:', JSON.stringify(Array.from(uint8Arr.slice(0, 10))));
+    console.log(
+      '[model] Output is int8 (read as uint8). First 10 raw scores:',
+      JSON.stringify(Array.from(uint8Arr.slice(0, 10))),
+    );
     scores = new Float32Array(uint8Arr.length);
     const scale = (outputTensorDesc as any).scale ?? 0.16345862;
     const zeroPoint = (outputTensorDesc as any).zeroPoint ?? 127;
@@ -188,7 +194,10 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
       );
     }
     scores = new Float32Array(outBuffer);
-    console.log('[model] Output is float32. First 10 scores:', JSON.stringify(Array.from(scores.slice(0, 10))));
+    console.log(
+      '[model] Output is float32. First 10 scores:',
+      JSON.stringify(Array.from(scores.slice(0, 10))),
+    );
   }
 
   return scores;

@@ -73,7 +73,7 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
 
   // ── 4. Extract RGB and normalize to [-1, 1] ──────────────────────
   const tensor = new Float32Array(MODEL_INPUT_LENGTH);
-  
+
   let rSum = 0;
   let gSum = 0;
   let bSum = 0;
@@ -91,9 +91,9 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
     gSum += g;
     bSum += b;
 
-    tensor[tensorIdx] = (r / 127.5) - 1.0;       // R
-    tensor[tensorIdx + 1] = (g / 127.5) - 1.0; // G
-    tensor[tensorIdx + 2] = (b / 127.5) - 1.0; // B
+    tensor[tensorIdx] = r / 127.5 - 1.0; // R
+    tensor[tensorIdx + 1] = g / 127.5 - 1.0; // G
+    tensor[tensorIdx + 2] = b / 127.5 - 1.0; // B
   }
 
   const numPixels = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
@@ -118,4 +118,3 @@ function decodeBase64(base64: string): Uint8Array {
   }
   return bytes;
 }
-
