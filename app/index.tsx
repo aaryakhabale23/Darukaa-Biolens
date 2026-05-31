@@ -7,13 +7,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -39,11 +33,7 @@ interface RoleCardProps {
 /** A card representing a user role. */
 function RoleCard({ title, icon, onPress }: RoleCardProps): React.JSX.Element {
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardHeader}>
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>{icon}</Text>
@@ -79,17 +69,9 @@ export default function RoleSelectionScreen(): React.JSX.Element {
         <View style={styles.rolesContainer}>
           <Text style={styles.sectionTitle}>Select Workspace Profile</Text>
 
-          <RoleCard
-            title="Field Ecologist"
-            icon="📷"
-            onPress={() => router.push('/camera')}
-          />
+          <RoleCard title="Field Ecologist" icon="📷" onPress={() => router.push('/camera')} />
 
-          <RoleCard
-            title="Biodiversity Admin"
-            icon="📊"
-            onPress={() => router.push('/admin')}
-          />
+          <RoleCard title="Biodiversity Admin" icon="📊" onPress={() => router.push('/admin')} />
         </View>
 
         {/* Footer info */}

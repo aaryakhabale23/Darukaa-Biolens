@@ -201,11 +201,7 @@ export default function CameraScreen(): React.JSX.Element {
         </View>
 
         {/* History button */}
-        <TouchableOpacity
-          style={styles.historyButton}
-          onPress={handleHistory}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.historyButton} onPress={handleHistory} activeOpacity={0.8}>
           <Text style={styles.historyButtonText}>History</Text>
         </TouchableOpacity>
       </View>

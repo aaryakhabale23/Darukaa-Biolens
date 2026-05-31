@@ -112,7 +112,9 @@ export default function AdminDashboardScreen(): React.JSX.Element {
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Species Frequency Distribution</Text>
         {stats.speciesDistribution.length === 0 ? (
-          <Text style={styles.emptyText}>No data available. Generate mock data or record observations.</Text>
+          <Text style={styles.emptyText}>
+            No data available. Generate mock data or record observations.
+          </Text>
         ) : (
           stats.speciesDistribution.map((item) => (
             <View key={item.species} style={styles.distRow}>
@@ -149,7 +151,8 @@ export default function AdminDashboardScreen(): React.JSX.Element {
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Site Comparison Analysis</Text>
         <Text style={styles.subtext}>
-          Displays biodiversity parameters aggregated by site. A higher Shannon Index (H') indicates greater species richness and evenness.
+          Displays biodiversity parameters aggregated by site. A higher Shannon Index (H') indicates
+          greater species richness and evenness.
         </Text>
 
         {siteComparisons.length === 0 ? (
@@ -196,13 +199,17 @@ export default function AdminDashboardScreen(): React.JSX.Element {
           style={[styles.tabButton, activeTab === 'stats' && styles.tabButtonActive]}
           onPress={() => setActiveTab('stats')}
         >
-          <Text style={[styles.tabButtonText, activeTab === 'stats' && styles.tabButtonTextActive]}>Statistics</Text>
+          <Text style={[styles.tabButtonText, activeTab === 'stats' && styles.tabButtonTextActive]}>
+            Statistics
+          </Text>
         </TouchableOpacity>
-<TouchableOpacity
+        <TouchableOpacity
           style={[styles.tabButton, activeTab === 'sites' && styles.tabButtonActive]}
           onPress={() => setActiveTab('sites')}
         >
-          <Text style={[styles.tabButtonText, activeTab === 'sites' && styles.tabButtonTextActive]}>Sites</Text>
+          <Text style={[styles.tabButtonText, activeTab === 'sites' && styles.tabButtonTextActive]}>
+            Sites
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -216,10 +223,18 @@ export default function AdminDashboardScreen(): React.JSX.Element {
       {/* ── Export Controls Bar ── */}
       {observations.length > 0 && (
         <View style={styles.exportBar}>
-          <TouchableOpacity style={styles.exportButtonSecondary} onPress={handleExportCsv} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.exportButtonSecondary}
+            onPress={handleExportCsv}
+            activeOpacity={0.8}
+          >
             <Text style={styles.exportButtonTextSecondary}>CSV Export</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.exportButtonPrimary} onPress={handleExportPdf} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.exportButtonPrimary}
+            onPress={handleExportPdf}
+            activeOpacity={0.8}
+          >
             <Text style={styles.exportButtonTextPrimary}>PDF Report</Text>
           </TouchableOpacity>
         </View>

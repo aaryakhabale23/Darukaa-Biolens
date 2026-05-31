@@ -107,14 +107,34 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
 
 // ── Internal helpers ───────────────────────────────────────────────────
 
-/**
- * Decode a base64-encoded string into a `Uint8Array`.
- */
 function decodeBase64(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Uint8Array(256);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)!] = i;
   }
+
+  const cleaned = base64
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .replace(/=+$/, '')
+    .replace(/\s/g, '');
+  const len = cleaned.length;
+  const byteLength = Math.floor((len * 3) / 4);
+  const bytes = new Uint8Array(byteLength);
+
+  let p = 0;
+  for (let i = 0; i < len; i += 4) {
+    const chunk =
+      (lookup[cleaned.charCodeAt(i)!]! << 18) |
+      (lookup[cleaned.charCodeAt(i + 1)!]! << 12) |
+      ((i + 2 < len ? lookup[cleaned.charCodeAt(i + 2)!]! : 0) << 6) |
+      (i + 3 < len ? lookup[cleaned.charCodeAt(i + 3)!]! : 0);
+
+    bytes[p++] = (chunk >> 16) & 255;
+    if (i + 2 < len) bytes[p++] = (chunk >> 8) & 255;
+    if (i + 3 < len) bytes[p++] = chunk & 255;
+  }
+
   return bytes;
 }
