@@ -1,39 +1,23 @@
 /**
- * @file Camera screen — the home screen of BioLens.
+ * @file Welcome / Role Selection Screen.
  *
- * Responsibilities:
- * 1. Request camera (and location) permissions on mount.
- * 2. Render a full-screen CameraView viewfinder.
- * 3. Capture photos via a circular shutter button (max 5).
- * 4. Display captured thumbnails in an ImageStrip above the button.
- * 5. Run the ML pipeline (preprocess → infer → top-k) when "Analyze" is tapped.
- * 6. Navigate to `/results` with prediction & location JSON params.
+ * The primary entry point for the BioLens application. Allows users
+ * to choose between the Ecologist (Field Capture) and Administrator
+ * (Dashboard & Stats) workflows.
  */
 
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Platform,
+  StatusBar,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
-import { preprocessImage } from '../ml/preprocess';
-import { runInference } from '../ml/model';
-import { getTopK } from '../ml/postprocess';
-import { getCurrentLocation, requestLocationPermission } from '../utils/geoLocation';
-import { useObservationStore } from '../store/observationStore';
-import ImageStrip from '../components/ImageStrip';
-
-// ─── Constants ──────────────────────────────────────────────────────────────
-const MAX_IMAGES = 5;
-const TOP_K = 3;
-
+// ─── Color Palette ──────────────────────────────────────────────────────────
 const COLORS = {
   primaryGreen: '#2D6A4F',
   secondaryGreen: '#52B788',
@@ -41,401 +25,205 @@ const COLORS = {
   background: '#F0F7F4',
   darkText: '#1B4332',
   white: '#FFFFFF',
+  cardBorder: '#D5E8DC',
 } as const;
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Sub-components ─────────────────────────────────────────────────────────
 
-/**
- * CameraScreen — full-screen camera viewfinder with capture + analyze flow.
- */
-export default function CameraScreen(): React.JSX.Element {
-  // ── Camera permission ──────────────────────────────────────────────────
-  const [permission, requestPermission] = useCameraPermissions();
+interface RoleCardProps {
+  title: string;
+  icon: string;
+  onPress: () => void;
+}
 
-  // ── Refs & state ───────────────────────────────────────────────────────
-  const cameraRef = useRef<CameraView>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // ── Store ──────────────────────────────────────────────────────────────
-  const currentImages = useObservationStore((s) => s.currentImages);
-  const addImage = useObservationStore((s) => s.addImage);
-  const removeImage = useObservationStore((s) => s.removeImage);
-  const clearCurrentImages = useObservationStore((s) => s.clearCurrentImages);
-
-  // ── Request location permission on mount ──────────────────────────────
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
-
-  // ── Handlers ───────────────────────────────────────────────────────────
-
-  /**
-   * Capture a photo from the camera and store the URI.
-   * Enforces the MAX_IMAGES limit.
-   */
-  const handleCapture = useCallback(async () => {
-    if (currentImages.length >= MAX_IMAGES) {
-      Alert.alert('Limit reached', `You can capture up to ${MAX_IMAGES} images per observation.`);
-      return;
-    }
-
-    try {
-      const photo = await cameraRef.current?.takePictureAsync({
-        quality: 0.8,
-        skipProcessing: Platform.OS === 'android', // faster on Android
-      });
-
-      if (photo?.uri) {
-        addImage(photo.uri);
-      }
-    } catch (err) {
-      console.error('[CameraScreen] Capture failed:', err);
-      Alert.alert('Capture error', 'Could not take a photo. Please try again.');
-    }
-  }, [currentImages.length, addImage]);
-
-  /**
-   * Run the full ML pipeline on the first captured image:
-   * preprocess → load model → inference → top-K → navigate.
-   */
-  const handleAnalyze = useCallback(async () => {
-    if (currentImages.length === 0) return;
-
-    setIsAnalyzing(true);
-    try {
-      // 1. Acquire GPS (best-effort)
-      let location: { lat: number; lng: number; accuracy: number } | null = null;
-      try {
-        location = await getCurrentLocation();
-      } catch {
-        console.warn('[CameraScreen] Location unavailable — continuing without it.');
-      }
-
-      // 2. Preprocess the first image
-      const inputTensor = await preprocessImage(currentImages[0]);
-
-      // 3. Run inference
-      const outputTensor = await runInference(inputTensor);
-
-      // 4. Extract top-K predictions
-      const predictions = getTopK(outputTensor, TOP_K);
-
-      // 5. Navigate to results
-      router.push({
-        pathname: '/results',
-        params: {
-          predictions: JSON.stringify(predictions),
-          location: JSON.stringify(location),
-        },
-      });
-    } catch (err) {
-      console.error('[CameraScreen] Analysis failed:', err);
-      Alert.alert(
-        'Analysis error',
-        'Something went wrong while identifying the plant. Please try again.',
-      );
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [currentImages]);
-
-  /** Navigate to the history screen. */
-  const handleHistory = useCallback(() => {
-    router.push('/history');
-  }, []);
-
-  // ── Permission gate ────────────────────────────────────────────────────
-
-  if (!permission) {
-    // Permissions are still loading
-    return (
-      <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color={COLORS.primaryGreen} />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.permissionTitle}>Camera Access Required</Text>
-        <Text style={styles.permissionBody}>
-          BioLens needs your camera to identify plants. Tap below to grant access.
-        </Text>
-        <TouchableOpacity
-          style={styles.permissionButton}
-          onPress={requestPermission}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // ── Main render ────────────────────────────────────────────────────────
-
-  const hasImages = currentImages.length > 0;
-
+/** A card representing a user role. */
+function RoleCard({ title, icon, onPress }: RoleCardProps): React.JSX.Element {
   return (
-    <View style={styles.container}>
-      {/* Camera viewfinder */}
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.iconContainer}>
+          <Text style={styles.icon}>{icon}</Text>
+        </View>
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      <View style={styles.cardFooter}>
+        <Text style={styles.cardActionText}>Access Profile →</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
-      {/* ── Top overlay ──────────────────────────────────────────── */}
-      <View style={styles.topOverlay}>
-        {/* Image count badge */}
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>
-            {currentImages.length}/{MAX_IMAGES}
-          </Text>
+// ─── Main Screen ────────────────────────────────────────────────────────────
+
+export default function RoleSelectionScreen(): React.JSX.Element {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+
+      {/* Decorative top green circle */}
+      <View style={styles.circleTop} />
+
+      <View style={styles.content}>
+        {/* App Logo & Header */}
+        <View style={styles.header}>
+          <Text style={styles.logoIcon}>🌿</Text>
+          <Text style={styles.logoText}>BioLens</Text>
+          <Text style={styles.tagline}>On-Device Ecological Classification</Text>
         </View>
 
-        {/* History button */}
-        <TouchableOpacity
-          style={styles.historyButton}
-          onPress={handleHistory}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.historyButtonText}>History</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Roles list */}
+        <View style={styles.rolesContainer}>
+          <Text style={styles.sectionTitle}>Select Workspace Profile</Text>
 
-      {/* ── Bottom overlay ───────────────────────────────────────── */}
-      <View style={styles.bottomOverlay}>
-        {/* Thumbnail strip */}
-        {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} />}
+          <RoleCard
+            title="Field Ecologist"
+            icon="📷"
+            onPress={() => router.push('/camera')}
+          />
 
-        {/* Controls row */}
-        <View style={styles.controlsRow}>
-          {/* Analyze button (left slot) */}
-          <View style={styles.sideSlot}>
-            {hasImages && (
-              <TouchableOpacity
-                style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
-                onPress={handleAnalyze}
-                disabled={isAnalyzing}
-                activeOpacity={0.8}
-              >
-                {isAnalyzing ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Text style={styles.analyzeButtonText}>Analyze</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
+          <RoleCard
+            title="Biodiversity Admin"
+            icon="📊"
+            onPress={() => router.push('/admin')}
+          />
+        </View>
 
-          {/* Capture button (center) */}
-          <TouchableOpacity
-            style={styles.captureButtonOuter}
-            onPress={handleCapture}
-            disabled={isAnalyzing}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
-            />
-          </TouchableOpacity>
-
-          {/* Clear button (right slot) */}
-          <View style={styles.sideSlot}>
-            {hasImages && !isAnalyzing && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={clearCurrentImages}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.clearButtonText}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* Footer info */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Powered by Local TensorFlow Lite runtime</Text>
         </View>
       </View>
-
-      {/* Full-screen loading overlay while analyzing */}
-      {isAnalyzing && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.white} />
-          <Text style={styles.loadingText}>Identifying plant…</Text>
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const CAPTURE_OUTER = 72;
-const CAPTURE_INNER = 60;
-
 const styles = StyleSheet.create({
-  // ── Layout ───────────────────────────────────────────────────────────
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
-
-  // ── Permission gate ──────────────────────────────────────────────────
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: COLORS.background,
-    paddingHorizontal: 32,
   },
-  permissionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.darkText,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  permissionBody: {
-    fontSize: 15,
-    color: COLORS.darkText,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  permissionButton: {
-    backgroundColor: COLORS.primaryGreen,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    color: COLORS.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-
-  // ── Top overlay ──────────────────────────────────────────────────────
-  topOverlay: {
+  circleTop: {
     position: 'absolute',
-    top: 48,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    zIndex: 10,
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: '#E2EFE9',
+    zIndex: 0,
   },
-  badge: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  badgeText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  historyButton: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  historyButtonText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // ── Bottom overlay ───────────────────────────────────────────────────
-  bottomOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 36,
-    paddingTop: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-    marginTop: 16,
-  },
-  sideSlot: {
+  content: {
     flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'space-between',
+    zIndex: 1,
+  },
+
+  // ── Header ───────────────────────────────────────────────────────────
+  header: {
     alignItems: 'center',
+    marginTop: 40,
   },
-
-  // ── Capture button ───────────────────────────────────────────────────
-  captureButtonOuter: {
-    width: CAPTURE_OUTER,
-    height: CAPTURE_OUTER,
-    borderRadius: CAPTURE_OUTER / 2,
-    borderWidth: 4,
-    borderColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoIcon: {
+    fontSize: 48,
+    marginBottom: 8,
   },
-  captureButtonInner: {
-    width: CAPTURE_INNER,
-    height: CAPTURE_INNER,
-    borderRadius: CAPTURE_INNER / 2,
-    backgroundColor: COLORS.white,
+  logoText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.primaryGreen,
+    letterSpacing: -0.5,
   },
-  captureButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-
-  // ── Analyze button ───────────────────────────────────────────────────
-  analyzeButton: {
-    backgroundColor: COLORS.secondaryGreen,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  analyzeButtonDisabled: {
-    opacity: 0.6,
-  },
-  analyzeButtonText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  // ── Clear button ─────────────────────────────────────────────────────
-  clearButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  clearButtonText: {
-    color: COLORS.white,
-    fontWeight: '600',
+  tagline: {
     fontSize: 14,
+    color: COLORS.secondaryGreen,
+    fontWeight: '600',
+    marginTop: 4,
   },
 
-  // ── Loading overlay ──────────────────────────────────────────────────
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+  // ── Roles ────────────────────────────────────────────────────────────
+  rolesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 16,
+    marginVertical: 40,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.0,
+    color: COLORS.secondaryGreen,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  // ── Card ─────────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: 20,
+    // Soft shadow
+    shadowColor: '#1B4332',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  iconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
-  loadingText: {
-    color: COLORS.white,
-    fontSize: 16,
+  icon: {
+    fontSize: 20,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.darkText,
+  },
+  cardDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+  },
+  cardActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primaryGreen,
+  },
+
+  // ── Footer ───────────────────────────────────────────────────────────
+  footer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#999',
     fontWeight: '600',
-    marginTop: 16,
   },
 });

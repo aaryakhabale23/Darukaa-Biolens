@@ -14,10 +14,7 @@ export type { TfliteModel };
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-/**
- * Number of classes the model predicts (plant species).
- * This must match the length of `labels.json`.
- */
+// Verified output class count from trained model signature
 export const NUM_CLASSES = 1081;
 
 // ── Singleton state ────────────────────────────────────────────────────
@@ -112,44 +109,87 @@ export async function loadModel(): Promise<TfliteModel> {
 export async function runInference(tensor: Float32Array): Promise<Float32Array> {
   const model = await loadModel();
 
-  // 1. Resolve input dataType and convert input tensor accordingly
-  const inputTensorInfo = model.inputs[0];
-  let inputBuffer: ArrayBuffer;
+  const inputTensorDesc = model.inputs[0];
+  const outputTensorDesc = model.outputs[0];
 
-  if (inputTensorInfo && inputTensorInfo.dataType === 'uint8') {
-    // Convert float [-1, 1] back to u8 [0, 255]
-    const u8Array = new Uint8Array(tensor.length);
+  console.log('[model] Inputs info:', JSON.stringify(model.inputs));
+  console.log('[model] Outputs info:', JSON.stringify(model.outputs));
+
+  let inputTypedArray: Uint8Array | Int8Array | Float32Array;
+
+  // 1. Handle Input Quantization if needed
+  if (inputTensorDesc?.dataType === 'uint8') {
+    console.log('[model] Input is uint8, quantizing float32 [-1, 1] -> uint8 [0, 255]');
+    const uint8Arr = new Uint8Array(tensor.length);
     for (let i = 0; i < tensor.length; i++) {
-      // Float range [-1, 1] maps to [0, 255]
-      u8Array[i] = Math.round((tensor[i] + 1.0) * 127.5);
+      uint8Arr[i] = Math.max(0, Math.min(255, Math.round((tensor[i]! + 1.0) * 127.5)));
     }
-    inputBuffer = u8Array.buffer as ArrayBuffer;
+    inputTypedArray = uint8Arr;
+  } else if (inputTensorDesc?.dataType === 'int8') {
+    console.log('[model] Input is int8, quantizing float32 [-1, 1] -> int8 [-128, 127]');
+    const scale = (inputTensorDesc as any).scale ?? 0.007843135;
+    const zeroPoint = (inputTensorDesc as any).zeroPoint ?? -1;
+    const int8Arr = new Int8Array(tensor.length);
+    for (let i = 0; i < tensor.length; i++) {
+      int8Arr[i] = Math.max(-128, Math.min(127, Math.round(tensor[i]! / scale + zeroPoint)));
+    }
+    inputTypedArray = int8Arr;
   } else {
-    inputBuffer = tensor.buffer as ArrayBuffer;
+    // Default to float32
+    inputTypedArray = tensor;
   }
 
-  // 2. Execute TFLite model inference
+  // 2. Run Inference
+  // Slice the buffer to guarantee we pass only the active content bytes to TFLite.
+  const inputBuffer = inputTypedArray.buffer.slice(
+    inputTypedArray.byteOffset,
+    inputTypedArray.byteOffset + inputTypedArray.byteLength
+  ) as ArrayBuffer;
   const outputBuffers: ArrayBuffer[] = await model.run([inputBuffer]);
 
-  if (!outputBuffers.length) {
+  if (!outputBuffers.length || !outputBuffers[0]) {
     throw new Error(
       '[model] Inference returned no output buffers. ' +
         'This usually indicates a model / delegate mismatch.',
     );
   }
 
-  // 3. Resolve output dataType and return Float32 scores
-  const outputTensorInfo = model.outputs[0];
-  if (outputTensorInfo && outputTensorInfo.dataType === 'uint8') {
-    // Read the buffer as bytes and scale to [0, 1] floats
-    const u8Output = new Uint8Array(outputBuffers[0]!);
-    const f32Output = new Float32Array(u8Output.length);
-    for (let i = 0; i < u8Output.length; i++) {
-      f32Output[i] = u8Output[i] / 255.0;
+  const outBuffer = outputBuffers[0];
+  console.log(`[model] Output buffer byteLength: ${outBuffer.byteLength}`);
+
+  // 3. Handle Output Dequantization if needed
+  let scores: Float32Array;
+
+  if (outputTensorDesc?.dataType === 'uint8') {
+    const uint8Arr = new Uint8Array(outBuffer);
+    console.log('[model] Output is uint8. First 10 raw scores:', JSON.stringify(Array.from(uint8Arr.slice(0, 10))));
+    scores = new Float32Array(uint8Arr.length);
+    // Dequantize from [0, 255] back to [0.0, 1.0] probabilities using the model's scale.
+    // (scale = 0.00390625 = 1/256)
+    for (let i = 0; i < uint8Arr.length; i++) {
+      scores[i] = uint8Arr[i]! * 0.00390625;
     }
-    return f32Output;
+  } else if (outputTensorDesc?.dataType === 'int8') {
+    // Read the output buffer as Uint8Array to avoid JS sign-flipping distortions.
+    const uint8Arr = new Uint8Array(outBuffer);
+    console.log('[model] Output is int8 (read as uint8). First 10 raw scores:', JSON.stringify(Array.from(uint8Arr.slice(0, 10))));
+    scores = new Float32Array(uint8Arr.length);
+    const scale = (outputTensorDesc as any).scale ?? 0.16345862;
+    const zeroPoint = (outputTensorDesc as any).zeroPoint ?? 127;
+    for (let i = 0; i < uint8Arr.length; i++) {
+      scores[i] = (uint8Arr[i]! - zeroPoint) * scale;
+    }
   } else {
-    // Standard float32 output
-    return new Float32Array(outputBuffers[0]!);
+    // Default: output is float32
+    if (outBuffer.byteLength % 4 !== 0) {
+      throw new Error(
+        `[model] Output buffer byteLength (${outBuffer.byteLength}) is not divisible by 4 ` +
+          `for float32 datatype. Model outputs desc: ${JSON.stringify(model.outputs)}`,
+      );
+    }
+    scores = new Float32Array(outBuffer);
+    console.log('[model] Output is float32. First 10 scores:', JSON.stringify(Array.from(scores.slice(0, 10))));
   }
+
+  return scores;
 }

@@ -27,26 +27,22 @@ export const MODEL_INPUT_LENGTH = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * MODEL_IN
  * Pre-process a captured or gallery image for TFLite inference.
  *
  * 1. Resizes the image to 224 × 224 px.
- * 2. Exports it as a JPEG with embedded base64 data.
- * 3. Decodes the base64 JPEG bytes using jpeg-js to get raw RGBA pixels.
- * 4. Normalises the RGB channels to `[-1, 1]` using `(pixel / 127.5) - 1.0`.
- *
- * The returned `Float32Array` can be passed directly into the model's
- * `run()` method after wrapping it in an `ArrayBuffer[]`.
+ * 2. Exports it as a lossless-quality JPEG with base64 data.
+ * 3. Decodes the base64 string to a binary JPEG byte array.
+ * 4. Uses jpeg-js to decode the JPEG bytes into a raw RGBA Uint8Array.
+ * 5. Extracts the RGB channels and normalizes them to [-1, 1].
  *
  * @param uri - Local file URI (e.g. `file:///…/photo.jpg`) or a
  *              base64 data-URI of the source image.
  * @returns A `Float32Array` of length 150 528 (224 × 224 × 3) with
  *          values in the range [-1, 1].
- *
- * @throws {Error} If the image manipulation fails or the JPEG decoding fails.
  */
 export async function preprocessImage(uri: string): Promise<Float32Array> {
-  // ── 1. Resize & encode to JPEG ───────────────────────────────────
+  // ── 1. Resize & encode ───────────────────────────────────────────
   const resized = await manipulateAsync(
     uri,
     [{ resize: { width: MODEL_INPUT_SIZE, height: MODEL_INPUT_SIZE } }],
-    { compress: 0.9, format: SaveFormat.JPEG, base64: true },
+    { compress: 1, format: SaveFormat.JPEG, base64: true },
   );
 
   if (!resized.base64) {
@@ -56,28 +52,55 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
     );
   }
 
-  // ── 2. Base64 → raw JPEG bytes ───────────────────────────────────
+  // ── 2. Base64 → raw JPEG bytes ────────────────────────────────────
   const jpegBytes = decodeBase64(resized.base64);
 
-  // ── 3. Decode JPEG to raw pixel data ──────────────────────────────
-  let rawImageData;
+  // ── 3. Decode JPEG to raw RGBA ───────────────────────────────────
+  let decoded;
   try {
-    rawImageData = jpeg.decode(jpegBytes, { useTArray: true });
-  } catch (decodeError: unknown) {
-    const msg = decodeError instanceof Error ? decodeError.message : String(decodeError);
-    throw new Error(`[preprocess] Failed to decode JPEG bytes: ${msg}`);
+    decoded = jpeg.decode(jpegBytes, { useTArray: true });
+  } catch (err: any) {
+    throw new Error(`[preprocess] Failed to decode JPEG data: ${err.message}`);
   }
 
-  // ── 4. Extract & Normalise RGB channels to [-1, 1] ───────────────
+  const { width, height, data } = decoded;
+  if (width !== MODEL_INPUT_SIZE || height !== MODEL_INPUT_SIZE) {
+    throw new Error(
+      `[preprocess] Unexpected decoded dimensions: ${width}x${height} ` +
+        `(expected ${MODEL_INPUT_SIZE}x${MODEL_INPUT_SIZE})`,
+    );
+  }
+
+  // ── 4. Extract RGB and normalize to [-1, 1] ──────────────────────
   const tensor = new Float32Array(MODEL_INPUT_LENGTH);
-  const data = rawImageData.data; // Uint8Array containing RGBA pixels (width * height * 4)
+  
+  let rSum = 0;
+  let gSum = 0;
+  let bSum = 0;
 
+  // Decoded data contains sequential RGBA bytes. Map to RGB output tensor.
   for (let i = 0; i < MODEL_INPUT_SIZE * MODEL_INPUT_SIZE; i++) {
-    // jpeg-js outputs RGBA layout. We map it to the model's expected RGB layout.
-    tensor[i * 3]     = (data[i * 4]     / 127.5) - 1.0; // Red channel
-    tensor[i * 3 + 1] = (data[i * 4 + 1] / 127.5) - 1.0; // Green channel
-    tensor[i * 3 + 2] = (data[i * 4 + 2] / 127.5) - 1.0; // Blue channel
+    const rawIdx = i * 4;
+    const tensorIdx = i * 3;
+
+    const r = data[rawIdx]!;
+    const g = data[rawIdx + 1]!;
+    const b = data[rawIdx + 2]!;
+
+    rSum += r;
+    gSum += g;
+    bSum += b;
+
+    tensor[tensorIdx] = (r / 127.5) - 1.0;       // R
+    tensor[tensorIdx + 1] = (g / 127.5) - 1.0; // G
+    tensor[tensorIdx + 2] = (b / 127.5) - 1.0; // B
   }
+
+  const numPixels = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
+  console.log(
+    `[preprocess] Decoded image stats - Mean R: ${(rSum / numPixels).toFixed(1)}, ` +
+      `G: ${(gSum / numPixels).toFixed(1)}, B: ${(bSum / numPixels).toFixed(1)}`,
+  );
 
   return tensor;
 }
@@ -86,9 +109,6 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
 
 /**
  * Decode a base64-encoded string into a `Uint8Array`.
- *
- * Uses the global `atob` function (available in React Native's JSC /
- * Hermes environment) and `charCodeAt` for byte extraction.
  */
 function decodeBase64(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -98,3 +118,4 @@ function decodeBase64(base64: string): Uint8Array {
   }
   return bytes;
 }
+

@@ -30,4 +30,6 @@ export interface Observation {
   confirmed: boolean;
   /** Whether this observation has been synced to a remote backend. */
   synced: boolean;
+  /** Optional user-specified site / location name (e.g. 'NMIMS Campus'). */
+  siteName?: string;
 }

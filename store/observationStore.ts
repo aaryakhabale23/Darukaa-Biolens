@@ -53,6 +53,10 @@ interface ObservationState {
   loadObservations: () => Promise<void>;
   /** Manually flush the current observations array to AsyncStorage. */
   persistObservations: () => Promise<void>;
+  /** Clear all observations and generate 55 diverse mock field observations for testing. */
+  generateMockData: () => void;
+  /** Filter out all mock observations from memory and AsyncStorage. */
+  clearMockObservations: () => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -144,6 +148,8 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
 
     set((state) => {
       const updated = [newObservation, ...state.observations];
+      // Sort updated chronologically by timestamp (newest first)
+      updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       // Fire-and-forget persistence so the UI isn't blocked.
       void persistToStorage(updated);
       return { observations: updated };
@@ -181,6 +187,8 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) {
         const parsed: Observation[] = JSON.parse(json);
+        // Sort parsed chronologically by timestamp (newest first)
+        parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         set({ observations: parsed });
       }
     } catch (error) {
@@ -190,5 +198,80 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
 
   persistObservations: async () => {
     await persistToStorage(get().observations);
+  },
+
+  generateMockData: () => {
+    const mockSpecies = [
+      'Mangifera indica',
+      'Azadirachta indica',
+      'Ocimum tenuiflorum',
+      'Ficus religiosa',
+      'Rosa indica',
+      'Catharanthus roseus',
+      'Aloe vera',
+      'Bambusa vulgaris'
+    ];
+    const mockSites = [
+      { name: 'NMIMS Campus', lat: 19.1103, lng: 72.8477 },
+      { name: 'Sanjay Gandhi National Park', lat: 19.2288, lng: 72.9182 },
+      { name: 'Juhu Beach Area', lat: 19.1062, lng: 72.8258 }
+    ];
+    
+    const generated: Observation[] = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 55; i++) {
+      const site = mockSites[i % mockSites.length]!;
+      const speciesIndex = (i * 3 + i % 2) % mockSpecies.length;
+      const primarySpecies = mockSpecies[speciesIndex]!;
+      const secondarySpecies = mockSpecies[(speciesIndex + 1) % mockSpecies.length]!;
+      const tertiarySpecies = mockSpecies[(speciesIndex + 2) % mockSpecies.length]!;
+      
+      // Jitter coordinates slightly
+      const latJitter = (Math.random() - 0.5) * 0.006;
+      const lngJitter = (Math.random() - 0.5) * 0.006;
+      
+      const dayOffset = Math.floor(Math.random() * 30);
+      const timestamp = new Date(now.getTime() - dayOffset * 24 * 60 * 60 * 1000).toISOString();
+      
+      const conf1 = 0.5 + Math.random() * 0.45;
+      const conf2 = Math.random() * (1 - conf1);
+      const conf3 = 1 - conf1 - conf2;
+      
+      generated.push({
+        id: `mock-${i}-${Math.random().toString(36).substring(2, 11)}`,
+        timestamp,
+        location: {
+          lat: site.lat + latJitter,
+          lng: site.lng + lngJitter,
+          accuracy: 5 + Math.random() * 15
+        },
+        images: [], // No mock image
+        predictions: [
+          { species: primarySpecies, confidence: conf1, rank: 1 },
+          { species: secondarySpecies, confidence: conf2, rank: 2 },
+          { species: tertiarySpecies, confidence: conf3, rank: 3 }
+        ],
+        confirmed: Math.random() > 0.15, // 85% confirmed
+        synced: false,
+        siteName: site.name
+      });
+    }
+    
+    set((state) => {
+      const updated = [...generated, ...state.observations];
+      // Sort updated chronologically by timestamp (newest first)
+      updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      void persistToStorage(updated);
+      return { observations: updated };
+    });
+  },
+
+  clearMockObservations: () => {
+    set((state) => {
+      const filtered = state.observations.filter((obs) => !obs.id.startsWith('mock-'));
+      void persistToStorage(filtered);
+      return { observations: filtered };
+    });
   },
 }));

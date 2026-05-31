@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 
 import { useObservationStore } from '../store/observationStore';
-import { exportObservations } from '../utils/exportJson';
+import { exportObservationsPdf } from '../utils/exportPdf';
 import type { Observation } from '../types/observation';
 
 // ─── Color Palette ──────────────────────────────────────────────────────────
@@ -170,11 +170,10 @@ export default function HistoryScreen(): React.JSX.Element {
 
     setIsExporting(true);
     try {
-      const filePath = await exportObservations(observations);
-      Alert.alert('Export complete', `Saved to:\n${filePath}`);
+      await exportObservationsPdf(observations);
     } catch (err) {
       console.error('[HistoryScreen] Export failed:', err);
-      Alert.alert('Export error', 'Could not export observations.');
+      Alert.alert('Export error', 'Could not export observations PDF.');
     } finally {
       setIsExporting(false);
     }
@@ -241,7 +240,7 @@ export default function HistoryScreen(): React.JSX.Element {
             {isExporting ? (
               <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-              <Text style={styles.exportButtonText}>Export All ({observations.length})</Text>
+              <Text style={styles.exportButtonText}>Export PDF Report ({observations.length})</Text>
             )}
           </TouchableOpacity>
         </View>

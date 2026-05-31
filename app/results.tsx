@@ -16,7 +16,7 @@
  * back to the camera screen.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -77,6 +78,9 @@ export default function ResultsScreen(): React.JSX.Element {
     }
   }, [params.location]);
 
+  // ── State ──────────────────────────────────────────────────────────────
+  const [siteName, setSiteName] = useState('');
+
   // ── Store ──────────────────────────────────────────────────────────────
   const currentImages = useObservationStore((s) => s.currentImages);
   const addObservation = useObservationStore((s) => s.addObservation);
@@ -93,15 +97,17 @@ export default function ResultsScreen(): React.JSX.Element {
           predictions,
           location,
           confirmed,
+          siteName: siteName.trim() || undefined,
         });
         clearCurrentImages();
-        router.back();
+        router.dismissAll(); // Return to Role Select or top root
+        router.replace('/camera'); // Or reset to camera screen
       } catch (err) {
         console.error('[ResultsScreen] Save failed:', err);
         Alert.alert('Save error', 'Could not save the observation. Please try again.');
       }
     },
-    [currentImages, predictions, location, addObservation, clearCurrentImages],
+    [currentImages, predictions, location, siteName, addObservation, clearCurrentImages],
   );
 
   const handleConfirm = useCallback(() => saveAndReturn(true), [saveAndReturn]);
@@ -132,6 +138,18 @@ export default function ResultsScreen(): React.JSX.Element {
             Top match: <Text style={styles.highlightText}>{topSpecies}</Text>{' '}
             {topConfidence !== '' && <Text style={styles.confidenceLabel}>({topConfidence})</Text>}
           </Text>
+        </View>
+
+        {/* ── Site Name Input ──────────────────────────────────────── */}
+        <View style={styles.inputSection}>
+          <Text style={styles.inputLabel}>Site / Location Name (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="e.g. NMIMS Campus, Sanjay Gandhi National Park..."
+            placeholderTextColor="#888"
+            value={siteName}
+            onChangeText={setSiteName}
+          />
         </View>
 
         {/* ── Prediction cards ─────────────────────────────────────── */}
@@ -201,8 +219,41 @@ const styles = StyleSheet.create({
   // ── Header ───────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 8,
+  },
+  inputSection: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#D5E8DC',
+    // subtle shadow
+    shadowColor: '#1B4332',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.darkText,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  textInput: {
+    backgroundColor: '#F7FAF8',
+    borderWidth: 1,
+    borderColor: '#C2DFCE',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: COLORS.darkText,
   },
   headerTitle: {
     fontSize: 22,
