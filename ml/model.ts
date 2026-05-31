@@ -115,20 +115,23 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
   console.log('[model] Inputs info:', JSON.stringify(model.inputs));
   console.log('[model] Outputs info:', JSON.stringify(model.outputs));
 
+  const inputDataType = inputTensorDesc?.dataType ?? 'int8';
+  const outputDataType = outputTensorDesc?.dataType ?? 'int8';
+
   let inputTypedArray: Uint8Array | Int8Array | Float32Array;
 
   // 1. Handle Input Quantization if needed
-  if (inputTensorDesc?.dataType === 'uint8') {
+  if (inputDataType === 'uint8') {
     console.log('[model] Input is uint8, quantizing float32 [-1, 1] -> uint8 [0, 255]');
     const uint8Arr = new Uint8Array(tensor.length);
     for (let i = 0; i < tensor.length; i++) {
       uint8Arr[i] = Math.max(0, Math.min(255, Math.round((tensor[i]! + 1.0) * 127.5)));
     }
     inputTypedArray = uint8Arr;
-  } else if (inputTensorDesc?.dataType === 'int8') {
+  } else if (inputDataType === 'int8') {
     console.log('[model] Input is int8, quantizing float32 [-1, 1] -> int8 [-128, 127]');
-    const scale = (inputTensorDesc as any).scale ?? 0.007843135;
-    const zeroPoint = (inputTensorDesc as any).zeroPoint ?? -1;
+    const scale = (inputTensorDesc as any)?.scale ?? 0.007843135;
+    const zeroPoint = (inputTensorDesc as any)?.zeroPoint ?? -1;
     const int8Arr = new Int8Array(tensor.length);
     for (let i = 0; i < tensor.length; i++) {
       int8Arr[i] = Math.max(-128, Math.min(127, Math.round(tensor[i]! / scale + zeroPoint)));
@@ -160,7 +163,7 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
   // 3. Handle Output Dequantization if needed
   let scores: Float32Array;
 
-  if (outputTensorDesc?.dataType === 'uint8') {
+  if (outputDataType === 'uint8') {
     const uint8Arr = new Uint8Array(outBuffer);
     console.log(
       '[model] Output is uint8. First 10 raw scores:',
@@ -172,7 +175,7 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
     for (let i = 0; i < uint8Arr.length; i++) {
       scores[i] = uint8Arr[i]! * 0.00390625;
     }
-  } else if (outputTensorDesc?.dataType === 'int8') {
+  } else if (outputDataType === 'int8') {
     // Read the output buffer as Uint8Array to avoid JS sign-flipping distortions.
     const uint8Arr = new Uint8Array(outBuffer);
     console.log(
@@ -180,8 +183,8 @@ export async function runInference(tensor: Float32Array): Promise<Float32Array> 
       JSON.stringify(Array.from(uint8Arr.slice(0, 10))),
     );
     scores = new Float32Array(uint8Arr.length);
-    const scale = (outputTensorDesc as any).scale ?? 0.16345862;
-    const zeroPoint = (outputTensorDesc as any).zeroPoint ?? 127;
+    const scale = (outputTensorDesc as any)?.scale ?? 0.16345862;
+    const zeroPoint = (outputTensorDesc as any)?.zeroPoint ?? 127;
     for (let i = 0; i < uint8Arr.length; i++) {
       scores[i] = (uint8Arr[i]! - zeroPoint) * scale;
     }
