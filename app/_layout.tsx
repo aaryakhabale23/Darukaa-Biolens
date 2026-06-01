@@ -6,15 +6,12 @@
  * routes (Camera, Results, History) are registered here.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-
-// ─── Color Palette ──────────────────────────────────────────────────────────
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  white: '#FFFFFF',
-} as const;
+import { COLORS } from '../constants/theme';
+import { useObservationStore } from '../store/observationStore';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 /** Shared header options applied to every screen in the stack. */
 const defaultScreenOptions = {
@@ -27,15 +24,18 @@ const defaultScreenOptions = {
 
 /**
  * RootLayout — the top-level navigator for BioLens.
- *
- * Renders a `Stack` with three screens:
- * - `index`   → Camera / capture screen (home)
- * - `results` → ML prediction results
- * - `history` → Saved observation history
  */
 export default function RootLayout(): React.JSX.Element {
+  const loadObservations = useObservationStore((s) => s.loadObservations);
+
+  useEffect(() => {
+    loadObservations().catch((err) => {
+      console.error('[RootLayout] Error hydrating store:', err);
+    });
+  }, [loadObservations]);
+
   return (
-    <>
+    <ErrorBoundary>
       {/* Keep a light status bar to contrast the dark-green header */}
       <StatusBar style="light" />
 
@@ -46,6 +46,6 @@ export default function RootLayout(): React.JSX.Element {
         <Stack.Screen name="results" options={{ title: 'Results' }} />
         <Stack.Screen name="history" options={{ title: 'History' }} />
       </Stack>
-    </>
+    </ErrorBoundary>
   );
 }

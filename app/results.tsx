@@ -34,16 +34,7 @@ import ImageStrip from '../components/ImageStrip';
 import { useObservationStore } from '../store/observationStore';
 import type { Prediction } from '../types/observation';
 
-// ─── Color Palette ──────────────────────────────────────────────────────────
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  secondaryGreen: '#52B788',
-  accent: '#95D5B2',
-  background: '#F0F7F4',
-  darkText: '#1B4332',
-  white: '#FFFFFF',
-  coral: '#E76F51',
-} as const;
+import { COLORS } from '../constants/theme';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -100,8 +91,7 @@ export default function ResultsScreen(): React.JSX.Element {
           siteName: siteName.trim() || undefined,
         });
         clearCurrentImages();
-        router.dismissAll(); // Return to Role Select or top root
-        router.replace('/camera'); // Or reset to camera screen
+        router.replace('/camera'); // Clear stack navigation safely
       } catch (err) {
         console.error('[ResultsScreen] Save failed:', err);
         Alert.alert('Save error', 'Could not save the observation. Please try again.');
@@ -139,6 +129,16 @@ export default function ResultsScreen(): React.JSX.Element {
             {topConfidence !== '' && <Text style={styles.confidenceLabel}>({topConfidence})</Text>}
           </Text>
         </View>
+
+        {/* ── Low Confidence Warning Banner ── */}
+        {predictions.length > 0 && predictions[0].confidence < 0.2 && (
+          <View style={styles.warningBanner}>
+            <Text style={styles.warningIcon}>⚠️</Text>
+            <Text style={styles.warningText}>
+              Low identification confidence. Please capture more angles or ensure clear illumination.
+            </Text>
+          </View>
+        )}
 
         {/* ── Site Name Input ──────────────────────────────────────── */}
         <View style={styles.inputSection}>
@@ -349,5 +349,26 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 17,
     fontWeight: '700',
+  },
+  warningBanner: {
+    backgroundColor: '#FFF3CD',
+    borderColor: '#FFEBAA',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  warningIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  warningText: {
+    color: '#856404',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
   },
 });

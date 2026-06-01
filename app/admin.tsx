@@ -4,7 +4,6 @@
  * Implements the ecology analytics dashboard, including biodiversity statistics,
  * Shannon index math, site comparisons, CSV data export, and geo-mapping.
  */
-
 import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
@@ -13,36 +12,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  FlatList,
-  Dimensions,
 } from 'react-native';
-
-import { router } from 'expo-router';
-
-import { useObservationStore, Observation } from '../store/observationStore';
+import { useObservationStore } from '../store/observationStore';
 import { auditObservations, compareSites, SiteMetrics } from '../utils/ecology';
 import { exportObservationsCsv } from '../utils/exportCsv';
 import { exportObservationsPdf } from '../utils/exportPdf';
-
-// ─── Color Palette ──────────────────────────────────────────────────────────
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  secondaryGreen: '#52B788',
-  accent: '#95D5B2',
-  background: '#F0F7F4',
-  darkText: '#1B4332',
-  white: '#FFFFFF',
-  coral: '#E76F51',
-  lightBorder: '#D5E8DC',
-} as const;
+import { COLORS } from '../constants/theme';
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdminDashboardScreen(): React.JSX.Element {
   const observations = useObservationStore((s) => s.observations);
   const generateMockData = useObservationStore((s) => s.generateMockData);
+  const clearAllObservations = useObservationStore((s) => s.clearAllObservations);
   const clearCurrentImages = useObservationStore((s) => s.clearCurrentImages);
-  const clearMockObservations = useObservationStore((s) => s.clearMockObservations);
 
   const [activeTab, setActiveTab] = useState<'stats' | 'sites'>('stats');
 
@@ -67,22 +50,22 @@ export default function AdminDashboardScreen(): React.JSX.Element {
 
   const handleResetData = useCallback(() => {
     Alert.alert(
-      'Clear Mock Data',
-      'Are you sure you want to delete only the generated mock observations? Your user captured images will be kept.',
+      'Reset Data',
+      'Are you sure you want to clear all observations from this device? This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear Mock Data',
+          text: 'Clear All',
           style: 'destructive',
-          onPress: () => {
-            clearMockObservations();
+          onPress: async () => {
+            await clearAllObservations();
             clearCurrentImages();
-            Alert.alert('Mock Data Cleared', 'All mock observations have been removed.');
+            Alert.alert('Database Cleared', 'All records have been reset.');
           },
         },
       ],
     );
-  }, [clearMockObservations, clearCurrentImages]);
+  }, [clearAllObservations, clearCurrentImages]);
 
   // ── Render Helpers ────────────────────────────────────────────────────
 
@@ -139,7 +122,7 @@ export default function AdminDashboardScreen(): React.JSX.Element {
             <Text style={styles.mockButtonText}>Generate Mock Data</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.resetButton} onPress={handleResetData}>
-            <Text style={styles.resetButtonText}>Clear Mock Data</Text>
+            <Text style={styles.resetButtonText}>Reset DB</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -216,7 +199,6 @@ export default function AdminDashboardScreen(): React.JSX.Element {
       {/* ── Active Tab Display ── */}
       <View style={styles.container}>
         {activeTab === 'stats' && renderStatsTab()}
-
         {activeTab === 'sites' && renderSitesTab()}
       </View>
 

@@ -11,27 +11,19 @@ import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
-// ─── Color Palette ──────────────────────────────────────────────────────────
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  secondaryGreen: '#52B788',
-  accent: '#95D5B2',
-  background: '#F0F7F4',
-  darkText: '#1B4332',
-  white: '#FFFFFF',
-  cardBorder: '#D5E8DC',
-} as const;
+import { COLORS } from '../constants/theme';
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 interface RoleCardProps {
   title: string;
   icon: string;
+  description: string;
   onPress: () => void;
 }
 
 /** A card representing a user role. */
-function RoleCard({ title, icon, onPress }: RoleCardProps): React.JSX.Element {
+function RoleCard({ title, icon, description, onPress }: RoleCardProps): React.JSX.Element {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.cardHeader}>
@@ -40,6 +32,7 @@ function RoleCard({ title, icon, onPress }: RoleCardProps): React.JSX.Element {
         </View>
         <Text style={styles.cardTitle}>{title}</Text>
       </View>
+      <Text style={styles.cardDescription}>{description}</Text>
       <View style={styles.cardFooter}>
         <Text style={styles.cardActionText}>Access Profile →</Text>
       </View>
@@ -69,9 +62,19 @@ export default function RoleSelectionScreen(): React.JSX.Element {
         <View style={styles.rolesContainer}>
           <Text style={styles.sectionTitle}>Select Workspace Profile</Text>
 
-          <RoleCard title="Field Ecologist" icon="📷" onPress={() => router.push('/camera')} />
+          <RoleCard
+            title="Field Ecologist"
+            icon="📷"
+            description="Capture plant specimens, run offline MobileNet-v2 classification, and map geolocated observation sites."
+            onPress={() => router.push('/camera')}
+          />
 
-          <RoleCard title="Biodiversity Admin" icon="📊" onPress={() => router.push('/admin')} />
+          <RoleCard
+            title="Biodiversity Admin"
+            icon="📊"
+            description="Explore biodiversity indices (Shannon Index), monitor site-wise species frequencies, view maps, and export CSV sheets."
+            onPress={() => router.push('/admin')}
+          />
         </View>
 
         {/* Footer info */}

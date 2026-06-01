@@ -51,29 +51,52 @@ interface ObservationState {
   getAllObservations: () => Observation[];
   /** Hydrate the store from AsyncStorage (call once on app start). */
   loadObservations: () => Promise<void>;
+  /** Clear all observations from state and AsyncStorage. */
+  clearAllObservations: () => Promise<void>;
   /** Manually flush the current observations array to AsyncStorage. */
   persistObservations: () => Promise<void>;
   /** Clear all observations and generate 55 diverse mock field observations for testing. */
   generateMockData: () => void;
-  /** Filter out all mock observations from memory and AsyncStorage. */
-  clearMockObservations: () => void;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+/**
+ * Validate that an incoming object matches the Observation interface schema.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function validateObservation(obs: any): obs is Observation {
+  if (!obs || typeof obs !== 'object') return false;
+  if (typeof obs.id !== 'string') return false;
+  if (typeof obs.timestamp !== 'string') return false;
+  if (!Array.isArray(obs.images)) return false;
+  if (!Array.isArray(obs.predictions)) return false;
+  if (typeof obs.confirmed !== 'boolean') return false;
+  if (typeof obs.synced !== 'boolean') return false;
+
+  // Validate location shape if present
+  if (obs.location !== null && obs.location !== undefined) {
+    if (typeof obs.location !== 'object') return false;
+    if (typeof obs.location.lat !== 'number' || typeof obs.location.lng !== 'number') return false;
+  }
+
+  // Validate predictions list
+  for (const pred of obs.predictions) {
+    if (!pred || typeof pred !== 'object') return false;
+    if (typeof pred.species !== 'string') return false;
+    if (typeof pred.confidence !== 'number') return false;
+    if (typeof pred.rank !== 'number') return false;
+  }
+
+  return true;
+}
 
 /**
- * Generate a UUID v4 string.
- *
- * Uses `crypto.randomUUID()` when available (Hermes ≥ 0.72) and falls back
- * to a Math.random-based implementation for older engines.
+ * Generate a UUID v4 string. Uses the native crypto.randomUUID() function.
  */
 function generateId(): string {
-  // Prefer the native implementation when the runtime exposes it.
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-
-  // Fallback: RFC 4122 §4.4 compliant v4 UUID via Math.random.
+  // Fallback in case of runtime differences
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
     const rand = (Math.random() * 16) | 0;
     const value = char === 'x' ? rand : (rand & 0x3) | 0x8;
@@ -148,8 +171,6 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
 
     set((state) => {
       const updated = [newObservation, ...state.observations];
-      // Sort updated chronologically by timestamp (newest first)
-      updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       // Fire-and-forget persistence so the UI isn't blocked.
       void persistToStorage(updated);
       return { observations: updated };
@@ -186,13 +207,23 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) {
-        const parsed: Observation[] = JSON.parse(json);
-        // Sort parsed chronologically by timestamp (newest first)
-        parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        set({ observations: parsed });
+        const parsed = JSON.parse(json);
+        if (Array.isArray(parsed)) {
+          const validated = parsed.filter(validateObservation);
+          set({ observations: validated });
+        }
       }
     } catch (error) {
       console.error('[observationStore] Failed to load observations:', error);
+    }
+  },
+
+  clearAllObservations: async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+      set({ observations: [] });
+    } catch (error) {
+      console.error('[observationStore] Failed to clear all observations:', error);
     }
   },
 
@@ -260,18 +291,8 @@ export const useObservationStore = create<ObservationState>((set, get) => ({
 
     set((state) => {
       const updated = [...generated, ...state.observations];
-      // Sort updated chronologically by timestamp (newest first)
-      updated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       void persistToStorage(updated);
       return { observations: updated };
-    });
-  },
-
-  clearMockObservations: () => {
-    set((state) => {
-      const filtered = state.observations.filter((obs) => !obs.id.startsWith('mock-'));
-      void persistToStorage(filtered);
-      return { observations: filtered };
     });
   },
 }));

@@ -5,6 +5,7 @@ node_modules/
 .claude/
 scratch/
 
+
 # Expo
 .expo/
 dist/

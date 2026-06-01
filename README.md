@@ -1,6 +1,6 @@
 # BioLens — Mobile Biodiversity Intelligence Platform
 
-[![CI](https://github.com/YOUR_USERNAME/biolens/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/biolens/actions)
+[![CI](https://github.com/darukaa/biolens/actions/workflows/ci.yml/badge.svg)](https://github.com/darukaa/biolens/actions)
 ![Expo](https://img.shields.io/badge/Expo-56-blue)
 ![Node](https://img.shields.io/badge/Node-18+-green)
 ![Platform](https://img.shields.io/badge/Platform-Android-brightgreen)
@@ -14,35 +14,35 @@ Field workers capture images of vegetation; BioLens runs a highly optimized Mobi
 ## ML Pipeline Architecture
 
 ```
-Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quantization 
-→ Native TFLite Inference → Signed INT8 Output Dequantization → Softmax + Top-K 
+Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quantization
+→ Native TFLite Inference → Signed INT8 Output Dequantization → Softmax + Top-K
 → Species Results
 ```
 
 ### Pipeline Stages
 
-| Step | Stage | Detail | Implementation / Library |
-|------|-------|--------|-------------------------|
-| 1 | **Image Capture** | Expo Camera captures JPEG; saved locally with UUID filename. | `expo-camera`, `expo-file-system` |
-| 2 | **Preprocessing** | Resize to 224×224. Base64 string is decoded via a custom pure JS base64 decoder and parsed using `jpeg-js` into raw RGBA bytes. Pixel values are normalized to the `[-1, 1]` range. | `expo-image-manipulator`, `jpeg-js` |
-| 3 | **Input Quantization** | Map Float32 `[-1, 1]` values into Signed INT8 `[-128, 127]` array using model scale (`0.007843135`) and zero-point (`-1`). An ArrayBuffer slice is passed synchronously to TFLite. | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
-| 4 | **Inference** | Load model synchronous runner; execute inference using CPU delegate. | `react-native-fast-tflite` |
-| 5 | **Output Dequantization** | The output buffer is read using a signed `Int8Array` and dequantized back into Float32 logits using model scale (`0.16345862`) and zero-point (`127`). | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
-| 6 | **Post-processing** | Computes a numerically stable softmax over all 1081 species logits, extracts the Top-3 highest-confidence species, and matches them to labels. | [ml/postprocess.ts](file:///D:/Projects/Darukaa/biolens/ml/postprocess.ts) |
+| Step | Stage                     | Detail                                                                                                                                                                              | Implementation / Library                                                       |
+| ---- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1    | **Image Capture**         | Expo Camera captures JPEG; saved locally with UUID filename.                                                                                                                        | `expo-camera`, `expo-file-system`                                              |
+| 2    | **Preprocessing**         | Resize to 224×224. Base64 string is decoded via a custom pure JS base64 decoder and parsed using `jpeg-js` into raw RGBA bytes. Pixel values are normalized to the `[-1, 1]` range. | `expo-image-manipulator`, `jpeg-js`                                            |
+| 3    | **Input Quantization**    | Map Float32 `[-1, 1]` values into Signed INT8 `[-128, 127]` array using model scale (`0.007843135`) and zero-point (`-1`). An ArrayBuffer slice is passed synchronously to TFLite.  | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
+| 4    | **Inference**             | Load model synchronous runner; execute inference using CPU delegate.                                                                                                                | `react-native-fast-tflite`                                                     |
+| 5    | **Output Dequantization** | The output buffer is read using a signed `Int8Array` and dequantized back into Float32 logits using model scale (`0.16345862`) and zero-point (`127`).                              | Custom logic in [ml/model.ts](file:///D:/Projects/Darukaa/biolens/ml/model.ts) |
+| 6    | **Post-processing**       | Computes a numerically stable softmax over all 1081 species logits, extracts the Top-3 highest-confidence species, and matches them to labels.                                      | [ml/postprocess.ts](file:///D:/Projects/Darukaa/biolens/ml/postprocess.ts)     |
 
 ---
 
 ### Model: MobileNetV2 (Quantized INT8)
 
-| Property | Value |
-|----------|-------|
-| **Architecture** | MobileNetV2 (depthwise separable convolutions) |
-| **Model File** | `assets/models/mobilenet_v2_plant.tflite` |
-| **Input Shape** | `[1, 224, 224, 3]` — Signed INT8 image tensor |
-| **Output Shape** | `[1, 1081]` — Signed INT8 logits per species |
-| **Model Size** | **3.93 MB** (Quantized INT8) / original is ~13.74 MB (Float32) |
-| **Inference Speed**| ~50–120 ms on mid-range Android devices |
-| **Label Count** | 1081 plant species |
+| Property            | Value                                                          |
+| ------------------- | -------------------------------------------------------------- |
+| **Architecture**    | MobileNetV2 (depthwise separable convolutions)                 |
+| **Model File**      | `assets/models/mobilenet_v2_plant.tflite`                      |
+| **Input Shape**     | `[1, 224, 224, 3]` — Signed INT8 image tensor                  |
+| **Output Shape**    | `[1, 1081]` — Signed INT8 logits per species                   |
+| **Model Size**      | **3.93 MB** (Quantized INT8) / original is ~13.74 MB (Float32) |
+| **Inference Speed** | ~50–120 ms on mid-range Android devices                        |
+| **Label Count**     | 1081 plant species                                             |
 
 ---
 
@@ -57,6 +57,7 @@ Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quan
 ### Installation
 
 1. Clone the repository and install dependencies:
+
    ```bash
    git clone <your-repo> && cd biolens
    npm install
@@ -74,19 +75,24 @@ Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quan
 Because this app utilizes native C++ wrappers (`react-native-fast-tflite` Nitro Modules), it cannot run in the generic Expo Go client. You must build a standalone APK.
 
 ### Step 1: Install EAS CLI and Log In
+
 ```bash
 npm install -g eas-cli
 eas login
 ```
 
 ### Step 2: Configure EAS Build
+
 ```bash
 eas build:configure
 ```
-*(Select `Android` when prompted. This will generate `eas.json` in your project root).*
+
+_(Select `Android` when prompted. This will generate `eas.json` in your project root)._
 
 ### Step 3: Configure `eas.json` for APK builds
+
 Ensure your `eas.json` has `buildType` configured as `apk` under the `preview` profile:
+
 ```json
 {
   "build": {
@@ -101,10 +107,13 @@ Ensure your `eas.json` has `buildType` configured as `apk` under the `preview` p
 ```
 
 ### Step 4: Run the Build
+
 Run the build on EAS cloud servers (which are pre-configured with the required Android NDK and CMake compilers):
+
 ```bash
 eas build --platform android --profile preview
 ```
+
 Once compilation is complete, EAS will output a QR code and URL link to download the installable `.apk` file directly onto your Android device.
 
 ---

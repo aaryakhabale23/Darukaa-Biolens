@@ -32,10 +32,10 @@ jobs:
         run: npm run lint
 
       - name: TypeScript Type Check
-        run: npm run type-check || true
+        run: npm run type-check
 
       - name: Expo Doctor
-        run: npx expo-doctor || true
+        run: npx expo-doctor
 
   build-check:
     name: Expo Build Validation

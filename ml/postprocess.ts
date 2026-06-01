@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * @module ml/postprocess
  * @description Post-processing utilities for plant classification inference.
@@ -8,18 +9,7 @@
  */
 
 import labels from './labels.json';
-
-// ── Types ──────────────────────────────────────────────────────────────
-
-/** A single species prediction with its confidence score and rank. */
-export interface Prediction {
-  /** Botanical species name (e.g. "Mangifera indica"). */
-  species: string;
-  /** Probability in the range [0, 1] after softmax. */
-  confidence: number;
-  /** 1-based rank (1 = most likely). */
-  rank: number;
-}
+import type { Prediction } from '../types/observation';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -91,8 +81,13 @@ export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Predic
   // Always use softmax to get probabilities from raw dequantized logits.
   const probabilities = softmax(scores);
 
+  let maxProb = 0;
+  for (let i = 0; i < probabilities.length; i++) {
+    if (probabilities[i]! > maxProb) maxProb = probabilities[i]!;
+  }
+
   console.log(
-    `[postprocess] Applied softmax to scores. Max probability: ${Math.max(...probabilities).toFixed(4)}`,
+    `[postprocess] Applied softmax to scores. Max probability: ${maxProb.toFixed(4)}`,
   );
 
   // Build an index array so we can sort without losing original indices.
@@ -107,6 +102,54 @@ export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Predic
   return topK.map((classIndex, rank) => ({
     species: (labels as string[])[classIndex] ?? `Unknown (${classIndex})`,
     confidence: probabilities[classIndex]!,
+    rank: rank + 1,
+  }));
+}
+
+/**
+ * Aggregate predictions across multiple images using ensemble averaging.
+ * Computes softmax probabilities for each image individually, averages them,
+ * and extracts the top-K species.
+ */
+export function getAggregatedTopK(scoresArray: Float32Array[], k: number = DEFAULT_TOP_K): Prediction[] {
+  if (scoresArray.length === 0) return [];
+  if (scoresArray.length === 1) return getTopK(scoresArray[0]!, k);
+
+  const numClasses = scoresArray[0]!.length;
+  const aggregatedProbabilities = new Float32Array(numClasses);
+
+  // Compute softmax probabilities for each image and sum them up
+  for (const scores of scoresArray) {
+    const probs = softmax(scores);
+    for (let i = 0; i < numClasses; i++) {
+      aggregatedProbabilities[i] += probs[i]!;
+    }
+  }
+
+  // Average the probabilities
+  for (let i = 0; i < numClasses; i++) {
+    aggregatedProbabilities[i] /= scoresArray.length;
+  }
+
+  let maxProb = 0;
+  for (let i = 0; i < aggregatedProbabilities.length; i++) {
+    if (aggregatedProbabilities[i]! > maxProb) maxProb = aggregatedProbabilities[i]!;
+  }
+
+  if (__DEV__) {
+    console.log(
+      `[postprocess] Aggregated predictions across ${scoresArray.length} images. Max avg probability: ${maxProb.toFixed(4)}`,
+    );
+  }
+
+  const indices = Array.from({ length: numClasses }, (_, i) => i);
+  indices.sort((a, b) => aggregatedProbabilities[b]! - aggregatedProbabilities[a]!);
+
+  const topK = indices.slice(0, k);
+
+  return topK.map((classIndex, rank) => ({
+    species: (labels as string[])[classIndex] ?? `Unknown (${classIndex})`,
+    confidence: aggregatedProbabilities[classIndex]!,
     rank: rank + 1,
   }));
 }

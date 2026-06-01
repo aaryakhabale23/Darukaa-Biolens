@@ -22,10 +22,12 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
+import * as FileSystem from 'expo-file-system/legacy';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { preprocessImage } from '../ml/preprocess';
 import { runInference } from '../ml/model';
-import { getTopK } from '../ml/postprocess';
+import { getAggregatedTopK } from '../ml/postprocess';
 import { getCurrentLocation, requestLocationPermission } from '../utils/geoLocation';
 import { useObservationStore } from '../store/observationStore';
 import ImageStrip from '../components/ImageStrip';
@@ -34,14 +36,7 @@ import ImageStrip from '../components/ImageStrip';
 const MAX_IMAGES = 5;
 const TOP_K = 3;
 
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  secondaryGreen: '#52B788',
-  accent: '#95D5B2',
-  background: '#F0F7F4',
-  darkText: '#1B4332',
-  white: '#FFFFFF',
-} as const;
+import { COLORS } from '../constants/theme';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -70,7 +65,7 @@ export default function CameraScreen(): React.JSX.Element {
   // ── Handlers ───────────────────────────────────────────────────────────
 
   /**
-   * Capture a photo from the camera and store the URI.
+   * Capture a photo from the camera and store the URI permanently.
    * Enforces the MAX_IMAGES limit.
    */
   const handleCapture = useCallback(async () => {
@@ -86,7 +81,13 @@ export default function CameraScreen(): React.JSX.Element {
       });
 
       if (photo?.uri) {
-        addImage(photo.uri);
+        const filename = photo.uri.substring(photo.uri.lastIndexOf('/') + 1);
+        const permanentUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.copyAsync({
+          from: photo.uri,
+          to: permanentUri,
+        });
+        addImage(permanentUri);
       }
     } catch (err) {
       console.error('[CameraScreen] Capture failed:', err);
@@ -95,8 +96,8 @@ export default function CameraScreen(): React.JSX.Element {
   }, [currentImages.length, addImage]);
 
   /**
-   * Run the full ML pipeline on the first captured image:
-   * preprocess → load model → inference → top-K → navigate.
+   * Run the full ML pipeline on all captured images:
+   * preprocess → load model → inference → ensemble average → top-K → navigate.
    */
   const handleAnalyze = useCallback(async () => {
     if (currentImages.length === 0) return;
@@ -111,16 +112,18 @@ export default function CameraScreen(): React.JSX.Element {
         console.warn('[CameraScreen] Location unavailable — continuing without it.');
       }
 
-      // 2. Preprocess the first image
-      const inputTensor = await preprocessImage(currentImages[0]);
+      // 2. Preprocess and run inference on all images in the session
+      const scoresArray: Float32Array[] = [];
+      for (const imageUri of currentImages) {
+        const inputTensor = await preprocessImage(imageUri);
+        const outputTensor = await runInference(inputTensor);
+        scoresArray.push(outputTensor);
+      }
 
-      // 3. Run inference
-      const outputTensor = await runInference(inputTensor);
+      // 3. Extract top-K predictions via ensemble aggregation
+      const predictions = getAggregatedTopK(scoresArray, TOP_K);
 
-      // 4. Extract top-K predictions
-      const predictions = getTopK(outputTensor, TOP_K);
-
-      // 5. Navigate to results
+      // 4. Navigate to results
       router.push({
         pathname: '/results',
         params: {
@@ -130,9 +133,10 @@ export default function CameraScreen(): React.JSX.Element {
       });
     } catch (err) {
       console.error('[CameraScreen] Analysis failed:', err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       Alert.alert(
         'Analysis error',
-        'Something went wrong while identifying the plant. Please try again.',
+        `Something went wrong while identifying the plant. Details: ${errMsg}`,
       );
     } finally {
       setIsAnalyzing(false);
@@ -182,81 +186,88 @@ export default function CameraScreen(): React.JSX.Element {
       {/* Camera viewfinder */}
       <CameraView ref={cameraRef} style={styles.camera} facing="back" />
 
-      {/* ── Top overlay ──────────────────────────────────────────── */}
-      <View style={styles.topOverlay}>
-        {/* Exit to Role Selection */}
-        <TouchableOpacity
-          style={styles.historyButton}
-          onPress={() => router.replace('/')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.historyButtonText}>← Exit</Text>
-        </TouchableOpacity>
-
-        {/* Image count badge */}
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>
-            {currentImages.length}/{MAX_IMAGES}
-          </Text>
-        </View>
-
-        {/* History button */}
-        <TouchableOpacity style={styles.historyButton} onPress={handleHistory} activeOpacity={0.8}>
-          <Text style={styles.historyButtonText}>History</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Bottom overlay ───────────────────────────────────────── */}
-      <View style={styles.bottomOverlay}>
-        {/* Thumbnail strip */}
-        {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} />}
-
-        {/* Controls row */}
-        <View style={styles.controlsRow}>
-          {/* Analyze button (left slot) */}
-          <View style={styles.sideSlot}>
-            {hasImages && (
-              <TouchableOpacity
-                style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
-                onPress={handleAnalyze}
-                disabled={isAnalyzing}
-                activeOpacity={0.8}
-              >
-                {isAnalyzing ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Text style={styles.analyzeButtonText}>Analyze</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Capture button (center) */}
+      {/* Overlay controls layer */}
+      <SafeAreaView style={StyleSheet.absoluteFill} edges={['top', 'bottom']}>
+        {/* ── Top overlay ──────────────────────────────────────────── */}
+        <View style={styles.topOverlay}>
+          {/* Exit to Role Selection */}
           <TouchableOpacity
-            style={styles.captureButtonOuter}
-            onPress={handleCapture}
-            disabled={isAnalyzing}
-            activeOpacity={0.7}
+            style={styles.historyButton}
+            onPress={() => router.replace('/')}
+            activeOpacity={0.8}
           >
-            <View
-              style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
-            />
+            <Text style={styles.historyButtonText}>← Exit</Text>
           </TouchableOpacity>
 
-          {/* Clear button (right slot) */}
-          <View style={styles.sideSlot}>
-            {hasImages && !isAnalyzing && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={clearCurrentImages}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.clearButtonText}>Clear</Text>
-              </TouchableOpacity>
-            )}
+          {/* Image count badge */}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {currentImages.length}/{MAX_IMAGES}
+            </Text>
+          </View>
+
+          {/* History button */}
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={handleHistory}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.historyButtonText}>History</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Bottom overlay ───────────────────────────────────────── */}
+        <View style={styles.bottomOverlay}>
+          {/* Thumbnail strip */}
+          {hasImages && <ImageStrip images={currentImages} onRemove={removeImage} />}
+
+          {/* Controls row */}
+          <View style={styles.controlsRow}>
+            {/* Analyze button (left slot) */}
+            <View style={styles.sideSlot}>
+              {hasImages && (
+                <TouchableOpacity
+                  style={[styles.analyzeButton, isAnalyzing && styles.analyzeButtonDisabled]}
+                  onPress={handleAnalyze}
+                  disabled={isAnalyzing}
+                  activeOpacity={0.8}
+                >
+                  {isAnalyzing ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                  ) : (
+                    <Text style={styles.analyzeButtonText}>Analyze</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Capture button (center) */}
+            <TouchableOpacity
+              style={styles.captureButtonOuter}
+              onPress={handleCapture}
+              disabled={isAnalyzing}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[styles.captureButtonInner, isAnalyzing && styles.captureButtonDisabled]}
+              />
+            </TouchableOpacity>
+
+            {/* Clear button (right slot) */}
+            <View style={styles.sideSlot}>
+              {hasImages && !isAnalyzing && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={clearCurrentImages}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.clearButtonText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
 
       {/* Full-screen loading overlay while analyzing */}
       {isAnalyzing && (
@@ -320,15 +331,11 @@ const styles = StyleSheet.create({
 
   // ── Top overlay ──────────────────────────────────────────────────────
   topOverlay: {
-    position: 'absolute',
-    top: 48,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    zIndex: 10,
+    paddingTop: 12,
   },
   badge: {
     backgroundColor: 'rgba(0,0,0,0.55)',

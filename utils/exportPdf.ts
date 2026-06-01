@@ -29,6 +29,18 @@ function formatDateTime(isoString: string): string {
 }
 
 /**
+ * HTML-escape dynamic data strings to prevent PDF generation/HTML injection.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Generate the HTML template for the PDF.
  */
 function generateHtml(observations: Observation[]): string {
@@ -45,11 +57,11 @@ function generateHtml(observations: Observation[]): string {
     .map(
       (site) => `
       <tr>
-        <td><strong>${site.siteName}</strong></td>
+        <td><strong>${escapeHtml(site.siteName)}</strong></td>
         <td style="text-align: center;">${site.observationCount}</td>
         <td style="text-align: center;">${site.speciesCount}</td>
         <td style="text-align: center; font-weight: bold; color: #2d6a4f;">${site.shannonIndex}</td>
-        <td class="species-name" style="font-style: italic;">${site.topSpecies} <span style="font-weight: normal; font-style: normal; font-size: 9px; color: #666;">(${site.topSpeciesCount} sightings)</span></td>
+        <td class="species-name" style="font-style: italic;">${escapeHtml(site.topSpecies)} <span style="font-weight: normal; font-style: normal; font-size: 9px; color: #666;">(${site.topSpeciesCount} sightings)</span></td>
       </tr>
     `,
     )
@@ -67,9 +79,9 @@ function generateHtml(observations: Observation[]): string {
       return `
         <tr>
           <td style="font-weight: bold; color: #666;">#${totalObs - idx}</td>
-          <td class="species-name">${title}</td>
+          <td class="species-name">${escapeHtml(title)}</td>
           <td style="font-weight: bold; color: #2d6a4f;">${confidence}</td>
-          <td>${obs.siteName || 'General Field'}</td>
+          <td>${escapeHtml(obs.siteName || 'General Field')}</td>
           <td style="text-align: center;"><span class="status-badge ${statusClass}">${statusLabel}</span></td>
           <td style="color: #555; font-size: 10px;">${formatDateTime(obs.timestamp)}</td>
         </tr>

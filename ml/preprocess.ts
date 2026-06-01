@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * @module ml/preprocess
  * @description Image preprocessing pipeline for plant identification.
@@ -59,8 +60,9 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
   let decoded;
   try {
     decoded = jpeg.decode(jpegBytes, { useTArray: true });
-  } catch (err: any) {
-    throw new Error(`[preprocess] Failed to decode JPEG data: ${err.message}`);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    throw new Error(`[preprocess] Failed to decode JPEG data: ${errMsg}`);
   }
 
   const { width, height, data } = decoded;
@@ -96,11 +98,13 @@ export async function preprocessImage(uri: string): Promise<Float32Array> {
     tensor[tensorIdx + 2] = b / 127.5 - 1.0; // B
   }
 
-  const numPixels = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
-  console.log(
-    `[preprocess] Decoded image stats - Mean R: ${(rSum / numPixels).toFixed(1)}, ` +
-      `G: ${(gSum / numPixels).toFixed(1)}, B: ${(bSum / numPixels).toFixed(1)}`,
-  );
+  if (__DEV__) {
+    const numPixels = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
+    console.log(
+      `[preprocess] Decoded image stats - Mean R: ${(rSum / numPixels).toFixed(1)}, ` +
+        `G: ${(gSum / numPixels).toFixed(1)}, B: ${(bSum / numPixels).toFixed(1)}`,
+    );
+  }
 
   return tensor;
 }

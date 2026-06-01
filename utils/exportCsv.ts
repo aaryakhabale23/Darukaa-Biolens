@@ -15,7 +15,7 @@ import type { Observation } from '../store/observationStore';
 /**
  * Escape a string value for safe insertion into a CSV cell.
  */
-function escapeCsvValue(val: any): string {
+function escapeCsvValue(val: unknown): string {
   if (val === null || val === undefined) return '';
   const str = String(val);
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {

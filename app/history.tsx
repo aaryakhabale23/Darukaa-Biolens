@@ -26,17 +26,7 @@ import { useObservationStore } from '../store/observationStore';
 import { exportObservationsPdf } from '../utils/exportPdf';
 import type { Observation } from '../types/observation';
 
-// ─── Color Palette ──────────────────────────────────────────────────────────
-const COLORS = {
-  primaryGreen: '#2D6A4F',
-  secondaryGreen: '#52B788',
-  accent: '#95D5B2',
-  background: '#F0F7F4',
-  darkText: '#1B4332',
-  white: '#FFFFFF',
-  coral: '#E76F51',
-  lightBorder: '#D5E8DC',
-} as const;
+import { COLORS } from '../constants/theme';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

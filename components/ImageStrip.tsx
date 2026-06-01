@@ -9,11 +9,7 @@ import {
   View,
 } from 'react-native';
 
-// ─── Theme Colors ────────────────────────────────────────────────────────────
-const PRIMARY_GREEN = '#2D6A4F';
-const ACCENT = '#95D5B2';
-const DARK_TEXT = '#1B4332';
-const BORDER_COLOR = '#D4E8DC';
+import { COLORS } from '../constants/theme';
 
 /** Maximum number of observation images the app allows. */
 const MAX_IMAGES = 5;
@@ -146,7 +142,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: BORDER_COLOR,
+    borderColor: COLORS.lightBorder,
     backgroundColor: '#F5F5F5',
   },
   removeBtn: {
@@ -156,7 +152,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: PRIMARY_GREEN,
+    backgroundColor: COLORS.primaryGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -173,7 +169,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: ACCENT,
+    borderColor: COLORS.accent,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -184,7 +180,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 9,
-    color: DARK_TEXT,
+    color: COLORS.darkText,
     fontWeight: '500',
   },
 
@@ -194,12 +190,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
-    backgroundColor: ACCENT,
+    backgroundColor: COLORS.accent,
   },
   counterText: {
     fontSize: 12,
     fontWeight: '700',
-    color: DARK_TEXT,
+    color: COLORS.darkText,
   },
 });
 
