@@ -7,15 +7,20 @@
     "icon": "./assets/icon.png",
     "scheme": "biolens",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2D6A4F"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#2D6A4F"
+      }
     },
     "android": {
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#2D6A4F"
+      },
       "adaptiveIcon": {
         "backgroundColor": "#2D6A4F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -30,24 +35,9 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "react-native-fast-tflite",
-        {
-          "enableCoreMLDelegate": false
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "BioLens needs camera access to photograph plants for species identification."
-        }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "BioLens needs your location to tag plant observations with GPS coordinates."
-        }
-      ],
+      ["react-native-fast-tflite", { "enableCoreMLDelegate": false }],
+      ["expo-camera", { "cameraPermission": "BioLens needs camera access to photograph plants for species identification." }],
+      ["expo-location", { "locationWhenInUsePermission": "BioLens needs your location to tag plant observations with GPS coordinates." }],
       "expo-sharing"
     ]
   }
