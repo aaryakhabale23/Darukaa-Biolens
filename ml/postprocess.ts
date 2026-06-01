@@ -86,9 +86,7 @@ export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Predic
     if (probabilities[i]! > maxProb) maxProb = probabilities[i]!;
   }
 
-  console.log(
-    `[postprocess] Applied softmax to scores. Max probability: ${maxProb.toFixed(4)}`,
-  );
+  console.log(`[postprocess] Applied softmax to scores. Max probability: ${maxProb.toFixed(4)}`);
 
   // Build an index array so we can sort without losing original indices.
   const indices = Array.from({ length: probabilities.length }, (_, i) => i);
@@ -111,7 +109,10 @@ export function getTopK(scores: Float32Array, k: number = DEFAULT_TOP_K): Predic
  * Computes softmax probabilities for each image individually, averages them,
  * and extracts the top-K species.
  */
-export function getAggregatedTopK(scoresArray: Float32Array[], k: number = DEFAULT_TOP_K): Prediction[] {
+export function getAggregatedTopK(
+  scoresArray: Float32Array[],
+  k: number = DEFAULT_TOP_K,
+): Prediction[] {
   if (scoresArray.length === 0) return [];
   if (scoresArray.length === 1) return getTopK(scoresArray[0]!, k);
 

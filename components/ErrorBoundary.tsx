@@ -1,5 +1,13 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, DevSettings, Platform, ScrollView } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  DevSettings,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 
@@ -41,13 +49,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <View style={styles.content}>
             <Text style={styles.icon}>⚠️</Text>
             <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.subtitle}>
-              An unexpected error occurred in BioLens.
-            </Text>
+            <Text style={styles.subtitle}>An unexpected error occurred in BioLens.</Text>
             <ScrollView style={styles.errorScroll}>
-              <Text style={styles.errorText}>
-                {this.state.error?.toString()}
-              </Text>
+              <Text style={styles.errorText}>{this.state.error?.toString()}</Text>
             </ScrollView>
             <TouchableOpacity
               style={styles.button}

@@ -5,14 +5,7 @@
  * Shannon index math, site comparisons, CSV data export, and geo-mapping.
  */
 import React, { useMemo, useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useObservationStore } from '../store/observationStore';
 import { auditObservations, compareSites, SiteMetrics } from '../utils/ecology';
 import { exportObservationsCsv } from '../utils/exportCsv';

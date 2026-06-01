@@ -135,7 +135,8 @@ export default function ResultsScreen(): React.JSX.Element {
           <View style={styles.warningBanner}>
             <Text style={styles.warningIcon}>⚠️</Text>
             <Text style={styles.warningText}>
-              Low identification confidence. Please capture more angles or ensure clear illumination.
+              Low identification confidence. Please capture more angles or ensure clear
+              illumination.
             </Text>
           </View>
         )}

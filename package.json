@@ -2,6 +2,16 @@
   "name": "biolens",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-fast-tflite"
+        ],
+        "listUnknownPackages": false
+      }
+    }
+  },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.8",
@@ -14,6 +24,7 @@
     "expo-print": "~56.0.3",
     "expo-router": "~56.2.8",
     "expo-sharing": "~56.0.15",
+    "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "jpeg-js": "^0.4.4",
     "react": "19.2.3",
