@@ -17,7 +17,15 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "package": "com.darukaa.biolens"
     },
     "web": {
@@ -33,7 +41,12 @@
           "backgroundColor": "#2D6A4F"
         }
       ],
-      ["react-native-fast-tflite", { "enableCoreMLDelegate": false }],
+      [
+        "react-native-fast-tflite",
+        {
+          "enableCoreMLDelegate": false
+        }
+      ],
       [
         "expo-camera",
         {
@@ -46,7 +59,14 @@
           "locationWhenInUsePermission": "BioLens needs your location to tag plant observations with GPS coordinates."
         }
       ],
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      "expo-asset"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d7e09267-f15e-4cba-9544-51c622c5b861"
+      }
+    }
   }
 }

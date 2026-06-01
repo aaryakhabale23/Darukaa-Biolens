@@ -9,7 +9,7 @@
  */
 
 import { loadTensorflowModel, type TfliteModel } from 'react-native-fast-tflite';
-
+import { Asset } from 'expo-asset';
 // Re-export the model type for convenience.
 export type { TfliteModel };
 
@@ -53,8 +53,21 @@ export async function loadModel(): Promise<TfliteModel> {
   loadingPromise = (async () => {
     try {
       /* eslint-disable @typescript-eslint/no-require-imports */
-      const modelAsset = require('../assets/models/mobilenet_v2_plant_quant.tflite');
-      const model = await loadTensorflowModel(modelAsset, []);
+
+      const asset = Asset.fromModule(
+        require('../assets/models/mobilenet_v2_plant_quant.tflite')
+      );
+
+      await asset.downloadAsync();
+
+      if (!asset.localUri) {
+        throw new Error('Failed to resolve model asset');
+      }
+
+      const model = await loadTensorflowModel(
+        { url: asset.localUri },
+        []
+      );
       /* eslint-enable @typescript-eslint/no-require-imports */
       cachedModel = model;
       return model;

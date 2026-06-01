@@ -198,6 +198,12 @@ biolens/
 - **Ecology Analytics**: Automatically calculates the **Shannon Biodiversity Index ($H'$)**, unique species counts, and site comparisons directly on-device.
 - **Data Exporting**: Export all captured offline vegetation observation data as CSV or PDF report formats.
 
+## APK Download
+
+The latest Android APK build can be downloaded from:
+
+https://expo.dev/accounts/aaryy/projects/biolens/builds/82f0d66a-32de-4154-865f-02c97918c7a1
+
 ## License
 
 MIT
