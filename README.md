@@ -54,19 +54,49 @@ Image Capture → Preprocessing (Resize, Decode, Normalize) → Signed INT8 Quan
 - **EAS CLI** (`npm install -g eas-cli`)
 - **Android Device** (Custom Development Client is required. Custom C++ native modules **do not run inside standard Expo Go**).
 
-### Installation
+## Installation
 
-1. Clone the repository and install dependencies:
+### Prerequisites
 
-   ```bash
-   git clone <your-repo> && cd biolens
-   npm install
-   ```
+- Node.js 18+
+- Android Studio with Android SDK installed
+- Android device with USB debugging enabled or an Android emulator
 
-2. Run the Metro bundler locally:
-   ```bash
-   npx expo start
-   ```
+### 1. Clone the repository and install dependencies
+
+```bash
+git clone <your-repository-url>
+cd biolens
+npm install
+```
+
+### 2. Configure the Android SDK
+
+Create `android/local.properties` and set the Android SDK path:
+
+```properties
+sdk.dir=C:/Users/<YOUR_USERNAME>/AppData/Local/Android/Sdk
+```
+
+> Replace `<YOUR_USERNAME>` with your Windows username.
+
+### 3. Build and run the application
+
+Connect an Android device (USB debugging enabled) or start an emulator, then run:
+
+```bash
+npx expo run:android
+```
+
+The command will build the native Android application, install it on the connected device/emulator, and launch it automatically.
+
+### 4. Start the Metro development server (if required)
+
+```bash
+npx expo start
+```
+
+> **Important:** Expo Go is **not supported**. BioLens uses `react-native-fast-tflite` and native TensorFlow Lite modules for on-device ML inference, which require a native Android build.
 
 ---
 
